@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Blank React App"
+description = "A minimal Vite-powered React app prepared for pasting and developing an existing React component."
+version = "1.0.0"
+id = "artifacts/blank-react-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18404
+
+[services.development]
+run = "pnpm --filter @workspace/blank-react-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/blank-react-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/blank-react-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18404"
+BASE_PATH = "/"
