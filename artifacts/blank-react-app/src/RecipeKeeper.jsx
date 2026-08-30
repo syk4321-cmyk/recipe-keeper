@@ -274,12 +274,15 @@ const IMAGE_PROMPT = `이 이미지(들)는 요리 레시피와 관련된 스크
 {"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위"}],"steps":["조리 순서"]}`;
 
 async function callClaude(content) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/recipe/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ content }),
   });
   const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "AI analysis request failed");
+  }
   return parseModelJSON(data);
 }
 
