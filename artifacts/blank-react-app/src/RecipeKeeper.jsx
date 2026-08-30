@@ -534,7 +534,7 @@ export default function RecipeKeeper() {
     setLoading(true);
     setLoadingMsg("텍스트를 분석해서 레시피로 정리하는 중...");
     try {
-      const parsed = await callClaude(TEXT_PROMPT(textInput));
+      const parsed = await callClaude([{ type: "text", text: TEXT_PROMPT(textInput) }]);
       openPreview(parsed, "manual", textInput.slice(0, 200));
     } catch (e) {
       setLoadError("분석에 실패했어요. 아래에서 직접 채워 넣을 수 있어요.");
