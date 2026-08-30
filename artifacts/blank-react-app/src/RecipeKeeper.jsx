@@ -205,13 +205,8 @@ function linkify(text) {
   );
 }
 
-async function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result.split(",")[1]);
-    r.onerror = () => reject(new Error("read fail"));
-    r.readAsDataURL(file);
-  });
+function dataUrlToBase64(dataUrl) {
+  return dataUrl.split(",")[1] || "";
 }
 
 // 완성 사진은 저장 공간을 아끼기 위해 적당한 크기로 줄여서 저장
@@ -552,10 +547,19 @@ export default function RecipeKeeper() {
     setLoadError("");
     try {
       const imageBlocks = await Promise.all(
-        files.map(async (file) => ({
-          type: "image",
-          source: { type: "base64", media_type: file.type || "image/jpeg", data: await fileToBase64(file) },
-        }))
+        files.map(async (file) => {
+          // 원본 사진은 휴대폰에서 수 MB가 될 수 있어, AI 요청 전 OCR에 충분한
+          // 해상도로 줄여 업로드 본문이 프록시/서버 제한을 넘지 않게 한다.
+          const compressedDataUrl = await compressImage(file, 1800, 0.84);
+          return {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/jpeg",
+              data: dataUrlToBase64(compressedDataUrl),
+            },
+          };
+        })
       );
       const parsed = await callClaude([...imageBlocks, { type: "text", text: IMAGE_PROMPT }]);
       openPreview(parsed, "photo", files.length > 1 ? `스크린샷 ${files.length}장에서 가져옴` : "스크린샷에서 가져옴");
