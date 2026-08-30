@@ -1,0 +1,28 @@
+{
+  "name": "내 레시피 서랍",
+  "short_name": "레시피 서랍",
+  "description": "사진과 메모에서 레시피를 정리하고 장보기 목록과 요리 모드로 활용하는 레시피 관리 앱",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1B1712",
+  "theme_color": "#1B1712",
+  "categories": ["food", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/recipe-keeper-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/recipe-keeper-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

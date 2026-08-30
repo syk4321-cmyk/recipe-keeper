@@ -15,3 +15,14 @@ createRoot(document.getElementById('root')!, {
     <App />
   </ErrorBoundary>,
 );
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .catch(() => {
+        // The app remains fully usable when service-worker registration is
+        // unavailable in a development preview or unsupported browser.
+      });
+  });
+}

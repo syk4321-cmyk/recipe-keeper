@@ -147,6 +147,11 @@
     margin: 0;
     min-width: 320px;
   }
+
+  #root {
+    min-height: 100dvh;
+    background: #1b1712;
+  }
 }
 
 @layer utilities {
