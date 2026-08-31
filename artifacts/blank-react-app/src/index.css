@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Jua&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -77,8 +77,8 @@
   --sidebar-accent: 38 22% 88%;
   --sidebar-accent-foreground: 213 24% 18%;
   --sidebar-ring: 14 63% 53%;
-  --app-font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono: 'Space Mono', ui-monospace, monospace;
+  --app-font-sans: 'Gaegu', cursive, sans-serif;
+  --app-font-mono: 'Gaegu', cursive, sans-serif;
   --radius: 0.875rem;
   --primary-border: hsl(var(--primary));
   --secondary-border: hsl(var(--secondary));
@@ -150,8 +150,29 @@
 
   #root {
     min-height: 100dvh;
-    background: #1b1712;
+    background: #f7f0e6;
   }
+}
+
+.cookmark-app {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.cookmark-app .text-xs {
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.cookmark-app .text-sm {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.cookmark-app button,
+.cookmark-app input,
+.cookmark-app textarea {
+  font-family: 'Gaegu', cursive;
 }
 
 @layer utilities {

@@ -1,5 +1,5 @@
-const CACHE_NAME = "recipe-keeper-shell-v1";
-const APP_SHELL = ["/", "/manifest.json", "/icons/recipe-keeper.svg"];
+const CACHE_NAME = "cookmark-shell-v2";
+const APP_SHELL = ["/", "/manifest.json", "/icons/cookmark-192.png", "/icons/cookmark-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

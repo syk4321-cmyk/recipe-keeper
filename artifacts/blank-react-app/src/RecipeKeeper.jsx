@@ -9,16 +9,16 @@ import {
 } from "lucide-react";
 
 const C = {
-  ink: "#1B1712",
-  card: "#241E17",
-  raised: "#2F281F",
-  line: "#3A3226",
-  ember: "#D64520",
-  emberSoft: "#D6452022",
-  turmeric: "#E8A93A",
-  scallion: "#7FA07A",
-  paper: "#F3EDE1",
-  muted: "#A9998A",
+  ink: "#F7F0E6",
+  card: "#FFF9F0",
+  raised: "#EFE2E7",
+  line: "#D8C6D1",
+  ember: "#6B3F5C",
+  emberSoft: "#EADCE7",
+  turmeric: "#C47D58",
+  scallion: "#6D927D",
+  paper: "#332532",
+  muted: "#786371",
 };
 
 // The original component used a host-provided window.storage API. Use a
@@ -290,7 +290,7 @@ function Chip({ active, children, onClick, style }) {
         backgroundColor: active ? C.ember : C.raised,
         color: active ? C.paper : C.muted,
         border: `1px solid ${active ? C.ember : C.line}`,
-        fontFamily: "'Noto Sans KR', sans-serif",
+        fontFamily: "'Gaegu', cursive",
         fontWeight: 700,
         ...style,
       }}
@@ -303,9 +303,9 @@ function Chip({ active, children, onClick, style }) {
 function ReceiptRow({ name, amount, mono = true }) {
   return (
     <div className="flex items-baseline gap-2 py-1.5">
-      <span style={{ color: C.paper, fontFamily: "'Noto Sans KR', sans-serif" }}>{name}</span>
+      <span style={{ color: C.paper, fontFamily: "'Gaegu', cursive" }}>{name}</span>
       <span className="flex-1" style={{ borderBottom: `1px dotted ${C.line}`, transform: "translateY(-3px)" }} />
-      <span style={{ color: C.turmeric, fontFamily: mono ? "'IBM Plex Mono', monospace" : "inherit", fontWeight: 600, fontSize: 14 }}>
+      <span style={{ color: C.turmeric, fontFamily: "'Gaegu', cursive", fontWeight: 700, fontSize: 15 }}>
         {amount}
       </span>
     </div>
@@ -734,11 +734,11 @@ export default function RecipeKeeper() {
 
   return (
     <div
-      style={{ backgroundColor: C.ink, minHeight: "100%", color: C.paper, fontFamily: "'Noto Sans KR', sans-serif" }}
-      className="w-full max-w-md mx-auto relative flex flex-col"
+      style={{ backgroundColor: C.ink, minHeight: "100%", color: C.paper, fontFamily: "'Gaegu', cursive" }}
+      className="cookmark-app w-full max-w-md mx-auto relative flex flex-col"
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Jua&display=swap');
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
         input, textarea { outline: none; }
@@ -749,8 +749,8 @@ export default function RecipeKeeper() {
         <div className="flex flex-col flex-1 pb-24">
           <div className="px-5 pt-6 pb-2 flex items-start justify-between">
             <div>
-              <h1 style={{ fontFamily: "'Song Myung', serif", fontSize: 30, color: C.paper }}>내 레시피 서랍</h1>
-              <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>
+              <h1 style={{ fontFamily: "'Jua', sans-serif", fontSize: 30, color: C.paper }}>쿡마크</h1>
+              <p style={{ color: C.muted, fontSize: 15, marginTop: 2 }}>
                 {recipes.length}개의 레시피를 모아뒀어요
               </p>
             </div>
@@ -760,7 +760,7 @@ export default function RecipeKeeper() {
               style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.turmeric }}
             >
               <Lightbulb size={15} />
-              <span style={{ fontSize: 12, fontWeight: 700 }}>기능 제안</span>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>기능 제안</span>
             </button>
           </div>
 
@@ -865,7 +865,7 @@ export default function RecipeKeeper() {
                         >
                           {r.folder}
                         </span>
-                        <span style={{ color: C.muted, fontSize: 12 }}>
+                        <span style={{ color: C.muted, fontSize: 14 }}>
                           {r.source === "photo" ? "📸 스크린샷" : "✍️ 직접입력"}
                         </span>
                       </div>
@@ -931,7 +931,7 @@ export default function RecipeKeeper() {
 
           <div className="px-4 flex flex-col gap-5">
             <div>
-              <label style={{ color: C.muted, fontSize: 12 }}>요리 이름</label>
+              <label style={{ color: C.muted, fontSize: 14 }}>요리 이름</label>
               <input
                 value={draft.title}
                 onChange={(e) => updateDraft({ title: e.target.value })}
@@ -942,7 +942,7 @@ export default function RecipeKeeper() {
             </div>
 
             <div>
-              <label style={{ color: C.muted, fontSize: 12 }}>메모</label>
+              <label style={{ color: C.muted, fontSize: 14 }}>메모</label>
               <textarea
                 value={draft.note}
                 onChange={(e) => updateDraft({ note: e.target.value })}
@@ -951,14 +951,14 @@ export default function RecipeKeeper() {
                 className="w-full mt-1 px-3 py-2 rounded-xl text-sm"
                 style={{ backgroundColor: C.card, color: C.paper, border: `1px solid ${C.line}` }}
               />
-              <p style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+              <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>
                 여기 적은 링크는 상세 화면에서 눌러서 바로 열 수 있어요
               </p>
             </div>
 
             <div>
-              <label style={{ color: C.muted, fontSize: 12 }}>완성 사진</label>
-              <p style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+              <label style={{ color: C.muted, fontSize: 14 }}>완성 사진</label>
+              <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>
                 여러 장 올릴 수 있어요. 맨 앞 사진이 목록 썸네일로 쓰여요.
               </p>
               <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
@@ -973,7 +973,7 @@ export default function RecipeKeeper() {
                     {idx === 0 && (
                       <span
                         className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full font-bold"
-                        style={{ backgroundColor: C.ember, color: C.paper, fontSize: 10 }}
+                        style={{ backgroundColor: C.ember, color: C.paper, fontSize: 12 }}
                       >
                         대표
                       </span>
@@ -982,7 +982,7 @@ export default function RecipeKeeper() {
                       <button
                         onClick={() => makeThumbnail(idx)}
                         className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full"
-                        style={{ backgroundColor: "#000000aa", color: C.paper, fontSize: 10 }}
+                        style={{ backgroundColor: "#000000aa", color: C.paper, fontSize: 12 }}
                       >
                         대표로
                       </button>
@@ -1003,7 +1003,7 @@ export default function RecipeKeeper() {
                   style={{ width: 96, height: 96, backgroundColor: C.card, border: `1px dashed ${C.line}`, color: C.muted }}
                 >
                   <Camera size={20} />
-                  <span style={{ fontSize: 11 }}>{photoBusy ? "불러오는 중" : "사진 추가"}</span>
+                  <span style={{ fontSize: 13 }}>{photoBusy ? "불러오는 중" : "사진 추가"}</span>
                 </label>
                 <input
                   id="dish-photo-upload"
@@ -1017,7 +1017,7 @@ export default function RecipeKeeper() {
             </div>
 
             <div>
-              <label style={{ color: C.muted, fontSize: 12 }}>카테고리</label>
+              <label style={{ color: C.muted, fontSize: 14 }}>카테고리</label>
               <div className="flex gap-2 mt-1 overflow-x-auto">
                 {CATEGORIES.map((c) => (
                   <Chip key={c} active={draft.category === c} onClick={() => updateDraft({ category: c })}>
@@ -1028,7 +1028,7 @@ export default function RecipeKeeper() {
             </div>
 
             <div>
-              <label style={{ color: C.muted, fontSize: 12 }}>폴더</label>
+              <label style={{ color: C.muted, fontSize: 14 }}>폴더</label>
               <div className="flex gap-2 mt-1 overflow-x-auto">
                 {folders.map((f) => (
                   <Chip key={f} active={draft.folder === f} onClick={() => updateDraft({ folder: f })}>{f}</Chip>
@@ -1037,7 +1037,7 @@ export default function RecipeKeeper() {
             </div>
 
             <div>
-              <label style={{ color: C.muted, fontSize: 12 }}>몇 인분 기준인가요?</label>
+              <label style={{ color: C.muted, fontSize: 14 }}>몇 인분 기준인가요?</label>
               <div className="flex items-center gap-3 mt-1">
                 <button
                   onClick={() => updateDraft({ servings: Math.max(1, (draft.servings || 2) - 1) })}
@@ -1057,19 +1057,19 @@ export default function RecipeKeeper() {
                   +
                 </button>
               </div>
-              <p style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+              <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
                 재료 양이 이 기준으로 저장돼요. 상세화면에서 인분수를 바꾸면 자동으로 계산돼요.
               </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between">
-                <label style={{ color: C.muted, fontSize: 12 }}>재료</label>
-                <button onClick={addIngredientRow} style={{ color: C.turmeric, fontSize: 13 }} className="flex items-center gap-1">
+                <label style={{ color: C.muted, fontSize: 14 }}>재료</label>
+                <button onClick={addIngredientRow} style={{ color: C.turmeric, fontSize: 15 }} className="flex items-center gap-1">
                   <Plus size={14} /> 재료 추가
                 </button>
               </div>
-              <p style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
+              <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
               <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                 {draft.ingredients.map((ing, idx) => (
                   <div
@@ -1106,7 +1106,7 @@ export default function RecipeKeeper() {
                       onChange={(e) => updateIngredient(ing.id, { amount: e.target.value })}
                       placeholder="양"
                       className="w-20 bg-transparent text-sm text-right"
-                      style={{ color: C.turmeric, fontFamily: "'IBM Plex Mono', monospace" }}
+                      style={{ color: C.turmeric, fontFamily: "'Gaegu', cursive", fontWeight: 700 }}
                     />
                     <button onClick={() => removeIngredientRow(ing.id)} style={{ color: C.muted }}>
                       <Trash2 size={14} />
@@ -1118,12 +1118,12 @@ export default function RecipeKeeper() {
 
             <div>
               <div className="flex items-center justify-between">
-                <label style={{ color: C.muted, fontSize: 12 }}>조리 순서</label>
-                <button onClick={addStepRow} style={{ color: C.turmeric, fontSize: 13 }} className="flex items-center gap-1">
+                <label style={{ color: C.muted, fontSize: 14 }}>조리 순서</label>
+                <button onClick={addStepRow} style={{ color: C.turmeric, fontSize: 15 }} className="flex items-center gap-1">
                   <Plus size={14} /> 순서 추가
                 </button>
               </div>
-              <p style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
+              <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
               <div className="flex flex-col gap-2 mt-2">
                 {draft.steps.map((s, idx) => (
                   <div
@@ -1148,7 +1148,7 @@ export default function RecipeKeeper() {
                     </button>
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-1 text-xs font-bold"
-                      style={{ backgroundColor: C.ember, color: C.paper, fontFamily: "'Song Myung', serif" }}
+                      style={{ backgroundColor: C.ember, color: C.paper, fontFamily: "'Jua', sans-serif" }}
                     >
                       {idx + 1}
                     </div>
@@ -1173,7 +1173,7 @@ export default function RecipeKeeper() {
               className="w-full py-3.5 rounded-xl font-bold mt-2 mb-6"
               style={{ backgroundColor: draft.title.trim() ? C.ember : C.raised, color: C.paper, opacity: draft.title.trim() ? 1 : 0.6 }}
             >
-              {isEditingExisting ? "수정 완료" : "레시피 서랍에 담기"}
+              {isEditingExisting ? "수정 완료" : "쿡마크에 담기"}
             </button>
           </div>
         </div>
@@ -1228,7 +1228,7 @@ export default function RecipeKeeper() {
             ) : (
               <div style={{ fontSize: 38 }}>{CATEGORY_EMOJI[selectedRecipe.category]}</div>
             )}
-            <h2 style={{ fontFamily: "'Song Myung', serif", fontSize: 26, marginTop: 6 }}>{selectedRecipe.title}</h2>
+            <h2 style={{ fontFamily: "'Jua', sans-serif", fontSize: 26, marginTop: 6 }}>{selectedRecipe.title}</h2>
             <button
               onClick={() => setShowMoveFolder(true)}
               className="inline-flex items-center gap-1 mt-2 text-xs px-2 py-1 rounded-full"
@@ -1319,7 +1319,7 @@ export default function RecipeKeeper() {
                   <div key={idx} className="flex items-start gap-3">
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-bold"
-                      style={{ backgroundColor: C.ember, color: C.paper, fontFamily: "'Song Myung', serif" }}
+                      style={{ backgroundColor: C.ember, color: C.paper, fontFamily: "'Jua', sans-serif" }}
                     >
                       {idx + 1}
                     </div>
@@ -1345,7 +1345,7 @@ export default function RecipeKeeper() {
           <div className="flex-1 flex flex-col justify-center px-6">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center font-bold mb-4"
-              style={{ backgroundColor: C.ember, color: C.paper, fontFamily: "'Song Myung', serif" }}
+              style={{ backgroundColor: C.ember, color: C.paper, fontFamily: "'Jua', sans-serif" }}
             >
               {cookingIndex + 1}
             </div>
@@ -1356,7 +1356,7 @@ export default function RecipeKeeper() {
             {timerSeconds != null && (
               <div className="mt-8 flex flex-col items-center gap-3 p-5 rounded-2xl" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                 <span
-                  style={{ color: timerSeconds === 0 ? C.scallion : C.turmeric, fontSize: 40, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}
+                  style={{ color: timerSeconds === 0 ? C.scallion : C.turmeric, fontSize: 40, fontFamily: "'Gaegu', cursive", fontWeight: 700 }}
                 >
                   {timerSeconds === 0 ? "완료!" : formatTime(timerSeconds)}
                 </span>
@@ -1580,7 +1580,7 @@ export default function RecipeKeeper() {
         <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
           <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 style={{ fontFamily: "'Song Myung', serif", fontSize: 22 }}>레시피 담기</h3>
+              <h3 style={{ fontFamily: "'Jua', sans-serif", fontSize: 22 }}>레시피 담기</h3>
               <button onClick={() => { setShowAddSheet(false); setShowTextBox(false); setLoadError(""); }}><X size={22} color={C.muted} /></button>
             </div>
 
@@ -1674,7 +1674,7 @@ export default function RecipeKeeper() {
       {confirmDeleteId && (
         <div className="fixed inset-0 flex items-center justify-center max-w-md mx-auto z-40 px-6" style={{ backgroundColor: "#000000cc" }}>
           <div className="w-full rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-            <h3 style={{ fontFamily: "'Song Myung', serif", fontSize: 20, color: C.paper }}>레시피를 삭제할까요?</h3>
+            <h3 style={{ fontFamily: "'Jua', sans-serif", fontSize: 20, color: C.paper }}>레시피를 삭제할까요?</h3>
             <p style={{ color: C.muted, fontSize: 13, marginTop: 6 }}>삭제하면 다시 되돌릴 수 없어요.</p>
             <div className="flex gap-2 mt-5">
               <button
@@ -1701,7 +1701,7 @@ export default function RecipeKeeper() {
         <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
           <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 style={{ fontFamily: "'Song Myung', serif", fontSize: 22 }}>폴더 옮기기</h3>
+              <h3 style={{ fontFamily: "'Jua', sans-serif", fontSize: 22 }}>폴더 옮기기</h3>
               <button onClick={() => setShowMoveFolder(false)}><X size={22} color={C.muted} /></button>
             </div>
             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
@@ -1729,7 +1729,7 @@ export default function RecipeKeeper() {
         <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
           <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 style={{ fontFamily: "'Song Myung', serif", fontSize: 22 }}>폴더 관리</h3>
+              <h3 style={{ fontFamily: "'Jua', sans-serif", fontSize: 22 }}>폴더 관리</h3>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-0.5 rounded-full p-0.5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                   <button
@@ -1778,7 +1778,7 @@ export default function RecipeKeeper() {
       {confirmDeleteFolder && (
         <div className="fixed inset-0 flex items-center justify-center max-w-md mx-auto z-40 px-6" style={{ backgroundColor: "#000000cc" }}>
           <div className="w-full rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-            <h3 style={{ fontFamily: "'Song Myung', serif", fontSize: 20, color: C.paper }}>
+            <h3 style={{ fontFamily: "'Jua', sans-serif", fontSize: 20, color: C.paper }}>
               "{confirmDeleteFolder}" 폴더를 삭제할까요?
             </h3>
             <p style={{ color: C.muted, fontSize: 13, marginTop: 6 }}>
