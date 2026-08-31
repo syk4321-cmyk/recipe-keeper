@@ -1,0 +1,20 @@
+[build]
+  command = "pnpm --filter @workspace/blank-react-app run build"
+  publish = "artifacts/blank-react-app/dist/public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  BASE_PATH = "/"
+  PORT = "18404"
+
+[[redirects]]
+  from = "/api/recipe/analyze"
+  to = "/.netlify/functions/recipe-analyze"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
