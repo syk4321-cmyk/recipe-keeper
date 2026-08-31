@@ -24,6 +24,12 @@ const CATEGORY_EMOJI = {
 };
 const CATEGORIES = Object.keys(CATEGORY_EMOJI);
 const DEFAULT_FOLDERS = ["할래", "해먹음"];
+const NEW_CATEGORY_EMOJI = "🍴"; // 사용자가 직접 추가한 카테고리에 붙는 기본 이모지
+
+// 카테고리 이모지 조회 (사용자가 직접 추가한 카테고리는 CATEGORY_EMOJI에 없으므로 기본값 사용)
+function categoryEmoji(name) {
+  return CATEGORY_EMOJI[name] || NEW_CATEGORY_EMOJI;
+}
 
 // 재료 수량 문자열을 숫자+단위로 분리 (예: "700g" -> {value:700, unit:"g"})
 function parseAmountStr(s) {
@@ -353,6 +359,8 @@ export default function RecipeKeeper() {
   const [recipes, setRecipes] = useState([]);
   const [folders, setFolders] = useState(DEFAULT_FOLDERS);
   const [activeFolder, setActiveFolder] = useState("전체");
+  const [categories, setCategories] = useState(CATEGORIES);
+  const [activeCategory, setActiveCategory] = useState("전체");
   const [shoppingList, setShoppingList] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -365,6 +373,13 @@ export default function RecipeKeeper() {
   const [showFolderManage, setShowFolderManage] = useState(false);
   const [confirmDeleteFolder, setConfirmDeleteFolder] = useState(null);
   const [showMoveFolder, setShowMoveFolder] = useState(false);
+  const [showCategoryManage, setShowCategoryManage] = useState(false);
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(null);
+  // 등록/수정 화면에서 카테고리·폴더를 바로 추가할 때 쓰는 입력창 상태
+  const [editCategoryAddOpen, setEditCategoryAddOpen] = useState(false);
+  const [editNewCategoryName, setEditNewCategoryName] = useState("");
+  const [editFolderAddOpen, setEditFolderAddOpen] = useState(false);
+  const [editNewFolderName, setEditNewFolderName] = useState("");
 
   // ---- 기능 제안 (모두에게 공유되는 데이터) ----
   const [suggestions, setSuggestions] = useState([]);
@@ -457,6 +472,8 @@ export default function RecipeKeeper() {
   const [cardLayout, setCardLayout] = useState("list"); // "list" | "grid"
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [checkedIngredients, setCheckedIngredients] = useState({});
   const [viewServings, setViewServings] = useState(2);
   const [ready, setReady] = useState(false);
@@ -478,6 +495,13 @@ export default function RecipeKeeper() {
       try {
         const f = await appStorage.get("folders", false);
         if (f && f.value) setFolders(JSON.parse(f.value));
+      } catch (e) {}
+      try {
+        const cg = await appStorage.get("categories", false);
+        if (cg && cg.value) {
+          const parsed = JSON.parse(cg.value);
+          if (Array.isArray(parsed) && parsed.length) setCategories(parsed);
+        }
       } catch (e) {}
       try {
         const l = await appStorage.get("cardLayout", false);
@@ -507,6 +531,7 @@ export default function RecipeKeeper() {
 
   useEffect(() => { if (ready) appStorage.set("recipes", JSON.stringify(recipes), false).catch(() => {}); }, [recipes, ready]);
   useEffect(() => { if (ready) appStorage.set("folders", JSON.stringify(folders), false).catch(() => {}); }, [folders, ready]);
+  useEffect(() => { if (ready) appStorage.set("categories", JSON.stringify(categories), false).catch(() => {}); }, [categories, ready]);
   useEffect(() => { if (ready) appStorage.set("cardLayout", cardLayout, false).catch(() => {}); }, [cardLayout, ready]);
   useEffect(() => { if (ready) appStorage.set("featureSuggestions", JSON.stringify(suggestions), true).catch(() => {}); }, [suggestions, ready]);
   useEffect(() => { if (ready) appStorage.set("votedSuggestionIds", JSON.stringify(votedIds), false).catch(() => {}); }, [votedIds, ready]);
@@ -658,6 +683,26 @@ export default function RecipeKeeper() {
   }, []);
   const ingredientDrag = useReorderList(reorderIngredients);
 
+  const reorderFoldersCb = useCallback((from, to) => {
+    setFolders((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+  const folderDrag = useReorderList(reorderFoldersCb);
+
+  const reorderCategoriesCb = useCallback((from, to) => {
+    setCategories((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+  const categoryDrag = useReorderList(reorderCategoriesCb);
+
   function saveDraft() {
     if (!draft.title.trim()) return;
     const clean = {
@@ -671,6 +716,7 @@ export default function RecipeKeeper() {
       setRecipes((prev) => [clean, ...prev]);
     }
     if (!folders.includes(clean.folder)) setFolders((prev) => [...prev, clean.folder]);
+    if (!categories.includes(clean.category)) setCategories((prev) => [...prev, clean.category]);
     const wasEditing = isEditingExisting;
     setDraft(null);
     setIsEditingExisting(false);
@@ -679,6 +725,8 @@ export default function RecipeKeeper() {
       setView("detail");
     } else {
       setActiveFolder("전체");
+      setActiveCategory("전체");
+      setSearch("");
       setView("home");
     }
   }
@@ -703,6 +751,42 @@ export default function RecipeKeeper() {
     setRecipes((prev) => prev.map((r) => (r.folder === name ? { ...r, folder: fallback } : r)));
     if (activeFolder === name) setActiveFolder("전체");
     setConfirmDeleteFolder(null);
+  }
+
+  function addCategoryFilter() {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    if (!categories.includes(name)) setCategories((prev) => [...prev, name]);
+    setActiveCategory(name);
+    setNewCategoryName("");
+    setNewCategoryOpen(false);
+  }
+
+  function addCategory() {
+    const name = editNewCategoryName.trim();
+    if (!name) return;
+    if (!categories.includes(name)) setCategories((prev) => [...prev, name]);
+    if (draft) updateDraft({ category: name });
+    setEditNewCategoryName("");
+    setEditCategoryAddOpen(false);
+  }
+
+  function addFolderInline() {
+    const name = editNewFolderName.trim();
+    if (!name) return;
+    if (!folders.includes(name)) setFolders((prev) => [...prev, name]);
+    if (draft) updateDraft({ folder: name });
+    setEditNewFolderName("");
+    setEditFolderAddOpen(false);
+  }
+
+  function performDeleteCategory(name) {
+    const remaining = categories.filter((c) => c !== name);
+    const fallback = remaining[0] || "기타";
+    setCategories(remaining.length ? remaining : ["기타"]);
+    setRecipes((prev) => prev.map((r) => (r.category === name ? { ...r, category: fallback } : r)));
+    if (activeCategory === name) setActiveCategory("전체");
+    setConfirmDeleteCategory(null);
   }
 
   function moveRecipeToFolder(recipeId, folder) {
@@ -751,12 +835,13 @@ export default function RecipeKeeper() {
 
   const visibleRecipes = recipes.filter((r) => {
     const matchesFolder = activeFolder === "전체" || r.folder === activeFolder;
+    const matchesCategory = activeCategory === "전체" || r.category === activeCategory;
     const q = search.trim().toLowerCase();
     const matchesSearch =
       !q ||
       r.title.toLowerCase().includes(q) ||
       (r.ingredients || []).some((i) => i.name.toLowerCase().includes(q));
-    return matchesFolder && matchesSearch;
+    return matchesFolder && matchesCategory && matchesSearch;
   });
 
   return (
@@ -860,6 +945,44 @@ export default function RecipeKeeper() {
             </button>
           </div>
 
+          <div className="flex items-center gap-2 px-5 pb-3 overflow-x-auto min-w-0">
+            <Chip active={activeCategory === "전체"} onClick={() => setActiveCategory("전체")} style={{ fontSize: 13, padding: "4px 10px" }}>
+              카테고리 전체
+            </Chip>
+            {categories.map((c) => (
+              <Chip key={c} active={activeCategory === c} onClick={() => setActiveCategory(c)} style={{ fontSize: 13, padding: "4px 10px" }}>
+                {categoryEmoji(c)} {c}
+              </Chip>
+            ))}
+            {!newCategoryOpen ? (
+              <Chip onClick={() => setNewCategoryOpen(true)} style={{ backgroundColor: "transparent", fontSize: 13, padding: "4px 10px" }}>
+                <span className="flex items-center gap-1"><Plus size={13} /> 카테고리</span>
+              </Chip>
+            ) : (
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  autoFocus
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCategoryFilter()}
+                  placeholder="카테고리 이름"
+                  className="px-2 py-1 rounded-full text-sm w-24"
+                  style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+                />
+                <button onClick={addCategoryFilter} style={{ color: C.scallion }}><Check size={18} /></button>
+                <button onClick={() => setNewCategoryOpen(false)} style={{ color: C.muted }}><X size={18} /></button>
+              </div>
+            )}
+            <button
+              onClick={() => setShowCategoryManage(true)}
+              className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: C.raised, color: C.muted }}
+              aria-label="카테고리 관리"
+            >
+              <Settings2 size={13} />
+            </button>
+          </div>
+
           <div className={cardLayout === "grid" ? "px-5 grid grid-cols-2 gap-3 mt-2" : "px-5 flex flex-col gap-3 mt-2"}>
             {visibleRecipes.length === 0 && (
               <div className="text-center py-16 col-span-2" style={{ color: C.muted }}>
@@ -884,7 +1007,7 @@ export default function RecipeKeeper() {
                       {r.photos && r.photos[0] ? (
                         <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
                       ) : (
-                        CATEGORY_EMOJI[r.category] || "🍽️"
+                        categoryEmoji(r.category)
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -917,7 +1040,7 @@ export default function RecipeKeeper() {
                       {r.photos && r.photos[0] ? (
                         <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
                       ) : (
-                        CATEGORY_EMOJI[r.category] || "🍽️"
+                        categoryEmoji(r.category)
                       )}
                     </div>
                     <div className="p-2.5">
@@ -1050,11 +1173,30 @@ export default function RecipeKeeper() {
             <div>
               <label style={{ color: C.muted, fontSize: 14 }}>카테고리</label>
               <div className="flex gap-2 mt-1 overflow-x-auto min-w-0">
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <Chip key={c} active={draft.category === c} onClick={() => updateDraft({ category: c })}>
-                    {CATEGORY_EMOJI[c]} {c}
+                    {categoryEmoji(c)} {c}
                   </Chip>
                 ))}
+                {!editCategoryAddOpen ? (
+                  <Chip onClick={() => setEditCategoryAddOpen(true)} style={{ backgroundColor: "transparent" }}>
+                    <span className="flex items-center gap-1"><Plus size={14} /> 추가</span>
+                  </Chip>
+                ) : (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      autoFocus
+                      value={editNewCategoryName}
+                      onChange={(e) => setEditNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addCategory()}
+                      placeholder="카테고리 이름"
+                      className="px-2 py-1 rounded-full text-sm w-24"
+                      style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+                    />
+                    <button onClick={addCategory} style={{ color: C.scallion }}><Check size={18} /></button>
+                    <button onClick={() => setEditCategoryAddOpen(false)} style={{ color: C.muted }}><X size={18} /></button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1064,6 +1206,25 @@ export default function RecipeKeeper() {
                 {folders.map((f) => (
                   <Chip key={f} active={draft.folder === f} onClick={() => updateDraft({ folder: f })}>{f}</Chip>
                 ))}
+                {!editFolderAddOpen ? (
+                  <Chip onClick={() => setEditFolderAddOpen(true)} style={{ backgroundColor: "transparent" }}>
+                    <span className="flex items-center gap-1"><Plus size={14} /> 추가</span>
+                  </Chip>
+                ) : (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      autoFocus
+                      value={editNewFolderName}
+                      onChange={(e) => setEditNewFolderName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addFolderInline()}
+                      placeholder="폴더 이름"
+                      className="px-2 py-1 rounded-full text-sm w-24"
+                      style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+                    />
+                    <button onClick={addFolderInline} style={{ color: C.scallion }}><Check size={18} /></button>
+                    <button onClick={() => setEditFolderAddOpen(false)} style={{ color: C.muted }}><X size={18} /></button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1253,11 +1414,11 @@ export default function RecipeKeeper() {
                   className="absolute top-2 left-2 w-9 h-9 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: "#000000aa", fontSize: 18 }}
                 >
-                  {CATEGORY_EMOJI[selectedRecipe.category]}
+                  {categoryEmoji(selectedRecipe.category)}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 38 }}>{CATEGORY_EMOJI[selectedRecipe.category]}</div>
+              <div style={{ fontSize: 38 }}>{categoryEmoji(selectedRecipe.category)}</div>
             )}
             <h2 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 26, marginTop: 6 }}>{selectedRecipe.title}</h2>
             <button
@@ -1786,21 +1947,121 @@ export default function RecipeKeeper() {
             {folders.length === 0 ? (
               <p style={{ color: C.muted, fontSize: 15 }}>아직 만든 폴더가 없어요.</p>
             ) : (
-              <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-                {folders.map((f) => (
-                  <div
-                    key={f}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl"
-                    style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
-                  >
-                    <span style={{ color: C.paper, fontWeight: 700 }}>{f}</span>
-                    <button onClick={() => setConfirmDeleteFolder(f)} style={{ color: C.muted }}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <>
+                <p style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
+                <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+                  {folders.map((f, idx) => (
+                    <div
+                      key={f}
+                      ref={(el) => (folderDrag.itemRefs.current[idx] = el)}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                      style={{
+                        backgroundColor: folderDrag.dragActiveIndex === idx ? C.raised : C.card,
+                        border: `1px solid ${C.line}`,
+                        transform: folderDrag.dragActiveIndex === idx ? `translateY(${folderDrag.dragOffsetY}px) scale(1.02)` : "translateY(0)",
+                        transition: folderDrag.dragActiveIndex === idx ? "none" : "transform 150ms ease",
+                        zIndex: folderDrag.dragActiveIndex === idx ? 10 : 1,
+                        position: "relative",
+                        boxShadow: folderDrag.dragActiveIndex === idx ? "0 6px 16px #00000066" : "none",
+                      }}
+                    >
+                      <button
+                        onPointerDown={(e) => folderDrag.handleDragStart(e, idx)}
+                        onTouchStart={(e) => folderDrag.handleDragStart(e, idx)}
+                        className="shrink-0 touch-none cursor-grab active:cursor-grabbing"
+                        style={{ color: C.muted, padding: "2px" }}
+                      >
+                        <GripVertical size={16} />
+                      </button>
+                      <span className="flex-1" style={{ color: C.paper, fontWeight: 700 }}>{f}</span>
+                      <button onClick={() => setConfirmDeleteFolder(f)} style={{ color: C.muted }}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- CATEGORY MANAGE SHEET ---------- */}
+      {showCategoryManage && (
+        <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
+          <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>카테고리 관리</h3>
+              <button onClick={() => setShowCategoryManage(false)}><X size={22} color={C.muted} /></button>
+            </div>
+            {categories.length === 0 ? (
+              <p style={{ color: C.muted, fontSize: 15 }}>아직 만든 카테고리가 없어요.</p>
+            ) : (
+              <>
+                <p style={{ color: C.muted, fontSize: 13, marginBottom: 8 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
+                <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+                  {categories.map((c, idx) => (
+                    <div
+                      key={c}
+                      ref={(el) => (categoryDrag.itemRefs.current[idx] = el)}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                      style={{
+                        backgroundColor: categoryDrag.dragActiveIndex === idx ? C.raised : C.card,
+                        border: `1px solid ${C.line}`,
+                        transform: categoryDrag.dragActiveIndex === idx ? `translateY(${categoryDrag.dragOffsetY}px) scale(1.02)` : "translateY(0)",
+                        transition: categoryDrag.dragActiveIndex === idx ? "none" : "transform 150ms ease",
+                        zIndex: categoryDrag.dragActiveIndex === idx ? 10 : 1,
+                        position: "relative",
+                        boxShadow: categoryDrag.dragActiveIndex === idx ? "0 6px 16px #00000066" : "none",
+                      }}
+                    >
+                      <button
+                        onPointerDown={(e) => categoryDrag.handleDragStart(e, idx)}
+                        onTouchStart={(e) => categoryDrag.handleDragStart(e, idx)}
+                        className="shrink-0 touch-none cursor-grab active:cursor-grabbing"
+                        style={{ color: C.muted, padding: "2px" }}
+                      >
+                        <GripVertical size={16} />
+                      </button>
+                      <span className="flex-1" style={{ color: C.paper, fontWeight: 700 }}>{categoryEmoji(c)} {c}</span>
+                      <button onClick={() => setConfirmDeleteCategory(c)} style={{ color: C.muted }}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- CATEGORY DELETE CONFIRM ---------- */}
+      {confirmDeleteCategory && (
+        <div className="fixed inset-0 flex items-center justify-center max-w-md mx-auto z-40 px-6" style={{ backgroundColor: "#000000cc" }}>
+          <div className="w-full rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
+              "{confirmDeleteCategory}" 카테고리를 삭제할까요?
+            </h3>
+            <p style={{ color: C.muted, fontSize: 15, marginTop: 6 }}>
+              이 카테고리의 레시피는 사라지지 않고 다른 카테고리로 옮겨져요.
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setConfirmDeleteCategory(null)}
+                className="flex-1 py-3 rounded-xl font-bold"
+                style={{ backgroundColor: C.raised, color: C.muted }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => performDeleteCategory(confirmDeleteCategory)}
+                className="flex-1 py-3 rounded-xl font-bold"
+                style={{ backgroundColor: C.ember, color: C.ink }}
+              >
+                삭제하기
+              </button>
+            </div>
           </div>
         </div>
       )}
