@@ -19,17 +19,8 @@ const C = {
   muted: "#8C7B6B",
 };
 
-const CATEGORY_EMOJI = {
-  한식: "🍚", 중식: "🥡", 일식: "🍣", 양식: "🍝", 디저트: "🍰", 기타: "🍽️",
-};
-const CATEGORIES = Object.keys(CATEGORY_EMOJI);
+const CATEGORIES = ["한식", "중식", "일식", "양식", "디저트", "기타"];
 const DEFAULT_FOLDERS = ["할래", "해먹음"];
-const NEW_CATEGORY_EMOJI = "🍴"; // 사용자가 직접 추가한 카테고리에 붙는 기본 이모지
-
-// 카테고리 이모지 조회 (사용자가 직접 추가한 카테고리는 CATEGORY_EMOJI에 없으므로 기본값 사용)
-function categoryEmoji(name) {
-  return CATEGORY_EMOJI[name] || NEW_CATEGORY_EMOJI;
-}
 
 // 재료 수량 문자열을 숫자+단위로 분리 (예: "700g" -> {value:700, unit:"g"})
 function parseAmountStr(s) {
@@ -314,12 +305,15 @@ const IMAGE_PROMPT = `이 이미지(들)는 요리 레시피와 관련된 스크
 {"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위"}],"steps":["조리 순서"]}`;
 
 async function callClaude(content) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/recipe/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ content }),
   });
   const data = await res.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
   return parseModelJSON(data);
 }
 
@@ -362,6 +356,8 @@ export default function RecipeKeeper() {
   const [categories, setCategories] = useState(CATEGORIES);
   const [activeCategory, setActiveCategory] = useState("전체");
   const [shoppingList, setShoppingList] = useState([]);
+  const [cartAddedFlash, setCartAddedFlash] = useState(false);
+
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
@@ -551,6 +547,11 @@ export default function RecipeKeeper() {
     setVotedIds((prev) => (already ? prev.filter((v) => v !== id) : [...prev, id]));
   }
   useEffect(() => { if (ready) appStorage.set("shoppingList", JSON.stringify(shoppingList), false).catch(() => {}); }, [shoppingList, ready]);
+  useEffect(() => {
+    if (!cartAddedFlash) return;
+    const t = setTimeout(() => setCartAddedFlash(false), 1600);
+    return () => clearTimeout(t);
+  }, [cartAddedFlash]);
 
   function openPreview(parsed, source, sourceNote) {
     setDraft({ ...parsed, note: "", servings: 2, photos: [], id: uid(), source, sourceNote, folder: folders[0] || "할래", createdAt: Date.now() });
@@ -828,7 +829,29 @@ export default function RecipeKeeper() {
       });
       return list;
     });
-    setView("shopping");
+    setCartAddedFlash(true);
+  }
+
+  // 같은 이름(공백 무시, 대소문자 무시)의 항목을 하나로 합쳐요.
+  function mergeDuplicateShoppingItems() {
+    setShoppingList((prev) => {
+      const merged = [];
+      prev.forEach((item) => {
+        const idx = merged.findIndex(
+          (m) => !!m.checked === !!item.checked && m.name.trim().toLowerCase() === item.name.trim().toLowerCase()
+        );
+        if (idx >= 0) {
+          merged[idx] = {
+            ...merged[idx],
+            amount: mergeAmount(merged[idx].amount, item.amount),
+            recipeTitles: Array.from(new Set([...(merged[idx].recipeTitles || []), ...(item.recipeTitles || [])])),
+          };
+        } else {
+          merged.push({ ...item });
+        }
+      });
+      return merged;
+    });
   }
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
@@ -951,7 +974,7 @@ export default function RecipeKeeper() {
             </Chip>
             {categories.map((c) => (
               <Chip key={c} active={activeCategory === c} onClick={() => setActiveCategory(c)} style={{ fontSize: 13, padding: "4px 10px" }}>
-                {categoryEmoji(c)} {c}
+                {c}
               </Chip>
             ))}
             {!newCategoryOpen ? (
@@ -1002,12 +1025,12 @@ export default function RecipeKeeper() {
                   >
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
-                      style={{ backgroundColor: C.raised, fontSize: 22 }}
+                      style={{ backgroundColor: C.raised }}
                     >
                       {r.photos && r.photos[0] ? (
                         <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
                       ) : (
-                        categoryEmoji(r.category)
+                        <ChefHat size={20} color={C.muted} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1035,12 +1058,12 @@ export default function RecipeKeeper() {
                   >
                     <div
                       className="w-full flex items-center justify-center overflow-hidden"
-                      style={{ height: 92, backgroundColor: C.raised, fontSize: 30 }}
+                      style={{ height: 92, backgroundColor: C.raised }}
                     >
                       {r.photos && r.photos[0] ? (
                         <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
                       ) : (
-                        categoryEmoji(r.category)
+                        <ChefHat size={26} color={C.muted} />
                       )}
                     </div>
                     <div className="p-2.5">
@@ -1175,7 +1198,7 @@ export default function RecipeKeeper() {
               <div className="flex gap-2 mt-1 overflow-x-auto min-w-0">
                 {categories.map((c) => (
                   <Chip key={c} active={draft.category === c} onClick={() => updateDraft({ category: c })}>
-                    {categoryEmoji(c)} {c}
+                    {c}
                   </Chip>
                 ))}
                 {!editCategoryAddOpen ? (
@@ -1412,13 +1435,13 @@ export default function RecipeKeeper() {
                 )}
                 <div
                   className="absolute top-2 left-2 w-9 h-9 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "#000000aa", fontSize: 18 }}
+                  style={{ backgroundColor: "#000000aa" }}
                 >
-                  {categoryEmoji(selectedRecipe.category)}
+                  <ChefHat size={18} color="#fff" />
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 38 }}>{categoryEmoji(selectedRecipe.category)}</div>
+              <div style={{ color: C.muted }}><ChefHat size={34} /></div>
             )}
             <h2 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 26, marginTop: 6 }}>{selectedRecipe.title}</h2>
             <button
@@ -1441,13 +1464,18 @@ export default function RecipeKeeper() {
             <div className="mt-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold" style={{ color: C.paper }}>재료</h3>
-                <button
-                  onClick={() => addCheckedToShoppingList(selectedRecipe)}
-                  className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: C.scallion + "22", color: C.scallion, fontWeight: 700 }}
-                >
-                  <ShoppingCart size={14} /> 장보기 목록에 추가
-                </button>
+                <div className="flex items-center gap-2">
+                  {cartAddedFlash && (
+                    <span style={{ color: C.scallion, fontSize: 13, fontWeight: 700 }}>담았어요 ✓</span>
+                  )}
+                  <button
+                    onClick={() => addCheckedToShoppingList(selectedRecipe)}
+                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: C.scallion + "22", color: C.scallion, fontWeight: 700 }}
+                  >
+                    <ShoppingCart size={14} /> 장바구니에 추가
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 mt-3">
@@ -1617,7 +1645,7 @@ export default function RecipeKeeper() {
         <div className="flex flex-col flex-1 pb-24">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
-            <span className="font-bold" style={{ color: C.paper }}>장보기 목록</span>
+            <span className="font-bold" style={{ color: C.paper }}>장바구니</span>
           </div>
           <div className="px-5">
             {shoppingList.length === 0 ? (
@@ -1627,17 +1655,28 @@ export default function RecipeKeeper() {
               </div>
             ) : (
               <>
-                <div className="flex justify-end mb-2">
+                <div className="flex items-center gap-2 mb-2">
                   <button
-                    onClick={() => setShoppingList((prev) => prev.filter((i) => !i.checked))}
-                    style={{ color: C.muted, fontSize: 15 }}
+                    onClick={mergeDuplicateShoppingItems}
+                    className="px-3 py-1.5 rounded-xl text-sm"
+                    style={{ backgroundColor: C.emberSoft, color: C.ember, fontWeight: 700 }}
+                  >
+                    자동정리
+                  </button>
+                  <button
+                    onClick={() => setView("cartEdit")}
+                    className="px-3 py-1.5 rounded-xl text-sm"
+                    style={{ backgroundColor: C.raised, color: C.muted, fontWeight: 700 }}
                   >
                     담은 항목 정리
                   </button>
                 </div>
+                <p style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
+                  이름이 같은 재료는 "자동정리"로 합쳐져요. 이름 수정이나 삭제는 "담은 항목 정리"에서 할 수 있어요.
+                </p>
                 <div className="rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                   {shoppingList.map((item) => (
-                    <label key={item.id} className="flex items-center gap-2 py-2" style={{ borderBottom: `1px dashed ${C.line}` }}>
+                    <div key={item.id} className="flex items-center gap-2 py-2" style={{ borderBottom: `1px dashed ${C.line}` }}>
                       <input
                         type="checkbox"
                         checked={item.checked}
@@ -1651,10 +1690,7 @@ export default function RecipeKeeper() {
                         </div>
                         <span style={{ color: C.muted, fontSize: 13 }}>{(item.recipeTitles || []).join(", ")}</span>
                       </div>
-                      <button onClick={() => setShoppingList((prev) => prev.filter((i) => i.id !== item.id))} style={{ color: C.muted }}>
-                        <X size={14} />
-                      </button>
-                    </label>
+                    </div>
                   ))}
                 </div>
               </>
@@ -1662,6 +1698,74 @@ export default function RecipeKeeper() {
           </div>
         </div>
       )}
+
+      {/* ---------- 장바구니 수정 페이지 ---------- */}
+      {view === "cartEdit" && (
+        <div className="flex flex-col flex-1 pb-24">
+          <div className="flex items-center gap-3 px-4 py-4">
+            <button onClick={() => setView("shopping")}><ChevronLeft size={24} color={C.paper} /></button>
+            <span className="font-bold" style={{ color: C.paper }}>장바구니 수정</span>
+          </div>
+          <div className="px-5">
+            {shoppingList.length === 0 ? (
+              <div className="text-center py-16" style={{ color: C.muted }}>
+                <p className="mt-3 text-sm">담긴 항목이 없어요.</p>
+              </div>
+            ) : (
+              <>
+                <p style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
+                  이름·수량을 바로 수정하거나 삭제할 수 있어요.
+                </p>
+                <div className="rounded-xl p-3 flex flex-col gap-2" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+                  {shoppingList.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 py-1" style={{ borderBottom: `1px dashed ${C.line}` }}>
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={(e) =>
+                          setShoppingList((prev) => prev.map((i) => (i.id === item.id ? { ...i, checked: e.target.checked } : i)))
+                        }
+                      />
+                      <input
+                        value={item.name}
+                        onChange={(e) =>
+                          setShoppingList((prev) => prev.map((i) => (i.id === item.id ? { ...i, name: e.target.value } : i)))
+                        }
+                        placeholder="재료 이름"
+                        className="px-2 py-1.5 rounded-lg text-sm flex-1 min-w-0"
+                        style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+                      />
+                      <input
+                        value={item.amount || ""}
+                        onChange={(e) =>
+                          setShoppingList((prev) => prev.map((i) => (i.id === item.id ? { ...i, amount: e.target.value } : i)))
+                        }
+                        placeholder="수량"
+                        className="px-2 py-1.5 rounded-lg text-sm w-16 shrink-0"
+                        style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+                      />
+                      <button onClick={() => setShoppingList((prev) => prev.filter((i) => i.id !== item.id))} style={{ color: C.muted }}>
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    setShoppingList((prev) => prev.filter((i) => !i.checked));
+                    setView("shopping");
+                  }}
+                  className="w-full mt-4 py-3 rounded-xl font-bold flex items-center justify-center gap-1"
+                  style={{ backgroundColor: C.emberSoft, color: C.ember }}
+                >
+                  <Trash2 size={16} /> 구매완료 항목 삭제
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* ---------- FEATURE SUGGESTIONS (공유 데이터) ---------- */}
       {view === "features" && (
@@ -1760,9 +1864,31 @@ export default function RecipeKeeper() {
           >
             <Plus size={26} />
           </button>
-          <button onClick={() => setView("shopping")} className="flex flex-col items-center gap-1" style={{ color: view === "shopping" ? C.ember : C.muted }}>
-            <ShoppingCart size={22} />
-            <span className="text-xs">장보기</span>
+          <button onClick={() => setView("shopping")} className="flex flex-col items-center gap-1" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
+            <div style={{ position: "relative" }}>
+              <ShoppingCart size={22} />
+              {shoppingList.length > 0 && (
+                <span
+                  className="flex items-center justify-center"
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: -8,
+                    minWidth: 16,
+                    height: 16,
+                    padding: "0 4px",
+                    borderRadius: 999,
+                    backgroundColor: C.ember,
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  {shoppingList.length}
+                </span>
+              )}
+            </div>
+            <span className="text-xs">장바구니</span>
           </button>
         </div>
       )}
@@ -2023,7 +2149,7 @@ export default function RecipeKeeper() {
                       >
                         <GripVertical size={16} />
                       </button>
-                      <span className="flex-1" style={{ color: C.paper, fontWeight: 700 }}>{categoryEmoji(c)} {c}</span>
+                      <span className="flex-1" style={{ color: C.paper, fontWeight: 700 }}>{c}</span>
                       <button onClick={() => setConfirmDeleteCategory(c)} style={{ color: C.muted }}>
                         <Trash2 size={16} />
                       </button>
