@@ -357,6 +357,8 @@ export default function RecipeKeeper() {
   const [activeCategory, setActiveCategory] = useState("전체");
   const [shoppingList, setShoppingList] = useState([]);
   const [cartAddedFlash, setCartAddedFlash] = useState(false);
+  const [manualItemName, setManualItemName] = useState("");
+  const [manualItemAmount, setManualItemAmount] = useState("");
 
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -830,6 +832,17 @@ export default function RecipeKeeper() {
       return list;
     });
     setCartAddedFlash(true);
+  }
+
+  function addManualCartItem() {
+    const name = manualItemName.trim();
+    if (!name) return;
+    setShoppingList((prev) => [
+      { id: uid(), name, amount: manualItemAmount.trim(), checked: false, recipeTitles: [] },
+      ...prev,
+    ]);
+    setManualItemName("");
+    setManualItemAmount("");
   }
 
   // 같은 이름(공백 무시, 대소문자 무시)의 항목을 하나로 합쳐요.
@@ -1690,6 +1703,9 @@ export default function RecipeKeeper() {
                         </div>
                         <span style={{ color: C.muted, fontSize: 13 }}>{(item.recipeTitles || []).join(", ")}</span>
                       </div>
+                      <button onClick={() => setShoppingList((prev) => prev.filter((i) => i.id !== item.id))} style={{ color: C.muted }}>
+                        <X size={16} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1707,6 +1723,31 @@ export default function RecipeKeeper() {
             <span className="font-bold" style={{ color: C.paper }}>장바구니 수정</span>
           </div>
           <div className="px-5">
+            <div className="flex items-center gap-1 mb-4">
+              <input
+                value={manualItemName}
+                onChange={(e) => setManualItemName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addManualCartItem()}
+                placeholder="새 재료 이름"
+                className="px-2 py-2 rounded-lg text-sm flex-1 min-w-0"
+                style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+              />
+              <input
+                value={manualItemAmount}
+                onChange={(e) => setManualItemAmount(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addManualCartItem()}
+                placeholder="수량"
+                className="px-2 py-2 rounded-lg text-sm w-16 shrink-0"
+                style={{ backgroundColor: C.raised, color: C.paper, border: `1px solid ${C.line}` }}
+              />
+              <button
+                onClick={addManualCartItem}
+                className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: C.ember, color: C.ink }}
+              >
+                <Plus size={18} />
+              </button>
+            </div>
             {shoppingList.length === 0 ? (
               <div className="text-center py-16" style={{ color: C.muted }}>
                 <p className="mt-3 text-sm">담긴 항목이 없어요.</p>
@@ -1751,14 +1792,11 @@ export default function RecipeKeeper() {
                   ))}
                 </div>
                 <button
-                  onClick={() => {
-                    setShoppingList((prev) => prev.filter((i) => !i.checked));
-                    setView("shopping");
-                  }}
+                  onClick={() => setView("shopping")}
                   className="w-full mt-4 py-3 rounded-xl font-bold flex items-center justify-center gap-1"
-                  style={{ backgroundColor: C.emberSoft, color: C.ember }}
+                  style={{ backgroundColor: C.ember, color: C.ink }}
                 >
-                  <Trash2 size={16} /> 구매완료 항목 삭제
+                  <Check size={16} /> 장바구니 수정완료
                 </button>
               </>
             )}
