@@ -3,8 +3,11 @@ import {
   Camera, Plus, X, ChevronLeft, Check, ShoppingCart,
   Loader2, Trash2, Search, FolderPlus, BookOpen, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
-  Lightbulb, ArrowBigUp, Flame, Sparkles,
+  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut,
 } from "lucide-react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "./firebase";
+import LoginScreen from "./LoginScreen";
 
 const C = {
   ink: "#FFFFFF",
@@ -349,6 +352,13 @@ function ReceiptRow({ name, amount, mono = true }) {
 }
 
 export default function RecipeKeeper() {
+  // ---- 로그인 상태 (undefined: 확인 중, null: 로그아웃, 객체: 로그인됨) ----
+  const [user, setUser] = useState(undefined);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
+
   const [view, setView] = useState("home");
   const [recipes, setRecipes] = useState([]);
   const [folders, setFolders] = useState(DEFAULT_FOLDERS);
@@ -880,6 +890,28 @@ export default function RecipeKeeper() {
     return matchesFolder && matchesCategory && matchesSearch;
   });
 
+  // ---- 로그인 확인 중 ----
+  if (user === undefined) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          backgroundColor: C.ink,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Loader2 className="animate-spin" color={C.ember} size={32} />
+      </div>
+    );
+  }
+
+  // ---- 로그인 안 되어 있으면 로그인 화면 ----
+  if (!user) {
+    return <LoginScreen />;
+  }
+
   return (
     <div
       style={{ backgroundColor: C.ink, minHeight: "100vh", color: C.paper, fontFamily: "'Gowun Dodum', sans-serif" }}
@@ -906,14 +938,24 @@ export default function RecipeKeeper() {
                 {recipes.length}개의 레시피를 모아뒀어요
               </p>
             </div>
-            <button
-              onClick={() => setView("features")}
-              className="flex items-center gap-1 px-3 py-2 rounded-full mt-1 shrink-0"
-              style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.turmeric }}
-            >
-              <Lightbulb size={15} />
-              <span style={{ fontSize: 14, fontWeight: 700 }}>기능 제안</span>
-            </button>
+            <div className="flex items-center gap-2 mt-1 shrink-0">
+              <button
+                onClick={() => setView("features")}
+                className="flex items-center gap-1 px-3 py-2 rounded-full"
+                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.turmeric }}
+              >
+                <Lightbulb size={15} />
+                <span style={{ fontSize: 14, fontWeight: 700 }}>기능 제안</span>
+              </button>
+              <button
+                onClick={() => signOut(auth)}
+                className="flex items-center justify-center p-2 rounded-full"
+                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.muted }}
+                aria-label="로그아웃"
+              >
+                <LogOut size={15} />
+              </button>
+            </div>
           </div>
 
           <div className="px-5 py-2 flex items-center gap-2 min-w-0">
