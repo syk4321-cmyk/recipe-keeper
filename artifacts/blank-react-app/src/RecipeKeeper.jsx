@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Camera, Plus, X, ChevronLeft, Check, ShoppingCart,
-  Loader2, Trash2, Search, FolderPlus, BookOpen, PencilLine, GripVertical,
+  Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
-  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut,
+  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -500,6 +500,7 @@ export default function RecipeKeeper() {
   const [viewServings, setViewServings] = useState(2);
   const [ready, setReady] = useState(false);
   const fileInputRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     if (!user) return; // 로그인 확인 전이거나 로그아웃 상태면 아직 불러오지 않음
@@ -958,19 +959,11 @@ export default function RecipeKeeper() {
             <div className="flex items-center gap-2 mt-1 shrink-0">
               <button
                 onClick={() => setView("features")}
-                className="flex items-center justify-center p-2 rounded-full"
-                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.turmeric }}
-                aria-label="기능 제안"
-              >
-                <Lightbulb size={16} />
-              </button>
-              <button
-                onClick={() => signOut(auth)}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-full"
-                style={{ backgroundColor: "#FFFFFF", border: `1px solid ${C.line}`, color: C.muted }}
+                style={{ backgroundColor: "#FFFFFF", border: `1px solid ${C.line}`, color: C.turmeric }}
               >
-                <LogOut size={13} />
-                <span style={{ fontSize: 12, fontWeight: 700 }}>로그아웃</span>
+                <Lightbulb size={13} />
+                <span style={{ fontSize: 12, fontWeight: 700 }}>기능 제안</span>
               </button>
             </div>
           </div>
@@ -979,6 +972,7 @@ export default function RecipeKeeper() {
             <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
               <Search size={16} color={C.muted} />
               <input
+                ref={searchInputRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="이름이나 재료로 찾기 (예: 대파)"
@@ -1944,24 +1938,74 @@ export default function RecipeKeeper() {
         </div>
       )}
 
+      {view === "account" && (
+        <div className="flex flex-col flex-1 pb-10">
+          <div className="flex items-center gap-3 px-4 py-4">
+            <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
+            <span className="font-bold" style={{ color: C.paper }}>계정 정보</span>
+          </div>
+
+          <div className="px-5 flex flex-col gap-4">
+            <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+              <div
+                className="flex items-center justify-center rounded-full shrink-0"
+                style={{ width: 48, height: 48, backgroundColor: C.ember, color: C.ink }}
+              >
+                <User size={22} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: C.paper }}>
+                  {user?.displayName || "쿡마크 사용자"}
+                </p>
+                <p className="text-xs truncate" style={{ color: C.muted }}>
+                  {user?.email || "이메일 정보 없음"}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => signOut(auth)}
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold"
+              style={{ backgroundColor: "#FFFFFF", border: `1px solid ${C.line}`, color: C.muted }}
+            >
+              <LogOut size={15} />
+              로그아웃
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---------- BOTTOM NAV ---------- */}
-      {(view === "home" || view === "shopping" || view === "detail") && (
+      {(view === "home" || view === "shopping" || view === "detail" || view === "account") && (
         <div
           className="fixed bottom-0 left-0 right-0 max-w-md mx-auto flex items-center justify-around py-3 px-6"
           style={{ backgroundColor: C.card, borderTop: `1px solid ${C.line}` }}
         >
-          <button onClick={() => setView("home")} className="flex flex-col items-center gap-1" style={{ color: view === "home" ? C.ember : C.muted }}>
-            <BookOpen size={22} />
-            <span className="text-xs">서랍</span>
+          <button onClick={() => setView("home")} aria-label="홈" style={{ color: view === "home" ? C.ember : C.muted }}>
+            <Home size={22} />
+          </button>
+          <button
+            onClick={() => {
+              setView("home");
+              setTimeout(() => searchInputRef.current?.focus(), 120);
+            }}
+            aria-label="검색"
+            style={{ color: C.muted }}
+          >
+            <Search size={22} />
           </button>
           <button
             onClick={() => setShowAddSheet(true)}
+            aria-label="레시피 추가"
             className="w-14 h-14 rounded-full flex items-center justify-center -mt-8 shadow-lg"
             style={{ backgroundColor: C.ember, color: C.ink }}
           >
             <Plus size={26} />
           </button>
-          <button onClick={() => setView("shopping")} className="flex flex-col items-center gap-1" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
+          <button onClick={() => setView("account")} aria-label="계정" style={{ color: view === "account" ? C.ember : C.muted }}>
+            <User size={22} />
+          </button>
+          <button onClick={() => setView("shopping")} aria-label="장바구니" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
             <div style={{ position: "relative" }}>
               <ShoppingCart size={22} />
               {shoppingList.length > 0 && (
@@ -1985,7 +2029,6 @@ export default function RecipeKeeper() {
                 </span>
               )}
             </div>
-            <span className="text-xs">장바구니</span>
           </button>
         </div>
       )}
