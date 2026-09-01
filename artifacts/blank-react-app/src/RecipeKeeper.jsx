@@ -932,28 +932,28 @@ export default function RecipeKeeper() {
             <div>
               <div className="flex items-center gap-2">
                 <img src={COOKMARK_LOGO} alt="쿡마크 로고" style={{ width: 40, height: 40, borderRadius: 10 }} />
-                <h1 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 30, color: C.paper }}>Cookmark</h1>
+                <h1 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 30, fontWeight: 800, color: C.paper }}>Cookmark</h1>
               </div>
-              <p style={{ color: C.muted, fontSize: 15, marginTop: 2 }}>
+              <p style={{ color: C.muted, fontSize: 15, marginTop: 2, whiteSpace: "nowrap" }}>
                 {recipes.length}개의 레시피를 모아뒀어요
               </p>
             </div>
             <div className="flex items-center gap-2 mt-1 shrink-0">
               <button
                 onClick={() => setView("features")}
-                className="flex items-center gap-1 px-3 py-2 rounded-full"
+                className="flex items-center justify-center p-2 rounded-full"
                 style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.turmeric }}
+                aria-label="기능 제안"
               >
-                <Lightbulb size={15} />
-                <span style={{ fontSize: 14, fontWeight: 700 }}>기능 제안</span>
+                <Lightbulb size={16} />
               </button>
               <button
                 onClick={() => signOut(auth)}
-                className="flex items-center gap-1 px-3 py-2 rounded-full"
-                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.muted }}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full"
+                style={{ backgroundColor: "#FFFFFF", border: `1px solid ${C.line}`, color: C.muted }}
               >
-                <LogOut size={15} />
-                <span style={{ fontSize: 14, fontWeight: 700 }}>로그아웃</span>
+                <LogOut size={13} />
+                <span style={{ fontSize: 12, fontWeight: 700 }}>로그아웃</span>
               </button>
             </div>
           </div>
