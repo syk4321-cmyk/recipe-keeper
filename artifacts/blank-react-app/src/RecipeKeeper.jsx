@@ -6,7 +6,8 @@ import {
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "./firebase";
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { auth, db } from "./firebase";
 import LoginScreen from "./LoginScreen";
 
 const C = {
@@ -64,25 +65,36 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 // window.storage는 Claude 대화창(artifact) 안에서만 제공되는 저장소예요.
 // Netlify/Replit처럼 독립 배포된 환경에서는 이게 없기 때문에,
-// 없을 경우 브라우저의 localStorage로 자동 대체해서 항상 안전하게 동작하도록 합니다.
+// 없을 경우 Firestore를 사용해서 로그인한 계정별로 데이터를 저장합니다.
+// shared=false 데이터는 users/{uid}/data/{key} 문서에, shared=true 데이터는
+// shared/{key} 문서에 저장됩니다 (예: 기능 제안 게시판처럼 모두가 보는 데이터).
+let appStorageUid = null;
+function setAppStorageUid(uid) {
+  appStorageUid = uid || null;
+}
+
 const appStorage = (() => {
   if (typeof window !== "undefined" && window.storage && typeof window.storage.get === "function") {
     return window.storage;
   }
-  const lsKey = (key, shared) => `cookmark:${shared ? "shared" : "local"}:${key}`;
+  const docRef = (key, shared) =>
+    shared ? doc(db, "shared", key) : doc(db, "users", appStorageUid, "data", key);
   return {
     async get(key, shared = false) {
       try {
-        const raw = localStorage.getItem(lsKey(key, shared));
-        if (raw === null) return null;
-        return { key, value: raw, shared };
+        if (!shared && !appStorageUid) return null;
+        const snap = await getDoc(docRef(key, shared));
+        if (!snap.exists()) return null;
+        const data = snap.data();
+        return { key, value: data.value, shared };
       } catch (e) {
         return null;
       }
     },
     async set(key, value, shared = false) {
       try {
-        localStorage.setItem(lsKey(key, shared), value);
+        if (!shared && !appStorageUid) return null;
+        await setDoc(docRef(key, shared), { value, updatedAt: Date.now() });
         return { key, value, shared };
       } catch (e) {
         return null;
@@ -90,7 +102,8 @@ const appStorage = (() => {
     },
     async delete(key, shared = false) {
       try {
-        localStorage.removeItem(lsKey(key, shared));
+        if (!shared && !appStorageUid) return null;
+        await deleteDoc(docRef(key, shared));
         return { key, deleted: true, shared };
       } catch (e) {
         return null;
@@ -98,12 +111,13 @@ const appStorage = (() => {
     },
     async list(prefix = "", shared = false) {
       try {
+        if (!shared && !appStorageUid) return { keys: [], prefix, shared };
+        const colRef = shared ? collection(db, "shared") : collection(db, "users", appStorageUid, "data");
+        const snaps = await getDocs(colRef);
         const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          const marker = `cookmark:${shared ? "shared" : "local"}:`;
-          if (k && k.startsWith(marker + prefix)) keys.push(k.slice(marker.length));
-        }
+        snaps.forEach((d) => {
+          if (d.id.startsWith(prefix)) keys.push(d.id);
+        });
         return { keys, prefix, shared };
       } catch (e) {
         return null;
@@ -488,6 +502,9 @@ export default function RecipeKeeper() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    if (!user) return; // 로그인 확인 전이거나 로그아웃 상태면 아직 불러오지 않음
+    setAppStorageUid(user.uid);
+    setReady(false);
     (async () => {
       try {
         const r = await appStorage.get("recipes", false);
@@ -535,7 +552,7 @@ export default function RecipeKeeper() {
       } catch (e) {}
       setReady(true);
     })();
-  }, []);
+  }, [user]);
 
   useEffect(() => { if (ready) appStorage.set("recipes", JSON.stringify(recipes), false).catch(() => {}); }, [recipes, ready]);
   useEffect(() => { if (ready) appStorage.set("folders", JSON.stringify(folders), false).catch(() => {}); }, [folders, ready]);
