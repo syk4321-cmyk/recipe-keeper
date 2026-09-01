@@ -949,11 +949,11 @@ export default function RecipeKeeper() {
               </button>
               <button
                 onClick={() => signOut(auth)}
-                className="flex items-center justify-center p-2 rounded-full"
+                className="flex items-center gap-1 px-3 py-2 rounded-full"
                 style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.muted }}
-                aria-label="로그아웃"
               >
                 <LogOut size={15} />
+                <span style={{ fontSize: 14, fontWeight: 700 }}>로그아웃</span>
               </button>
             </div>
           </div>
