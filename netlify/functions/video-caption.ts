@@ -70,6 +70,7 @@ async function fetchTrackText(baseUrl: string): Promise<string | null> {
 async function fetchViaInnertube(
   videoId: string,
 ): Promise<{ title: string; text: string } | null> {
+  console.log("[video-caption] innertube: 요청 시작", { videoId });
   const res = await fetch("https://www.youtube.com/youtubei/v1/player", {
     method: "POST",
     headers: {
@@ -90,24 +91,37 @@ async function fetchViaInnertube(
       },
     }),
   });
+  console.log("[video-caption] innertube: 응답 상태", { status: res.status, ok: res.ok });
   if (!res.ok) return null;
 
   let data: any;
   try {
     data = await res.json();
-  } catch {
+  } catch (e) {
+    console.log("[video-caption] innertube: JSON 파싱 실패", {
+      message: e instanceof Error ? e.message : String(e),
+    });
     return null;
   }
 
   const title: string = data?.videoDetails?.title ?? "";
   const tracks: CaptionTrack[] =
     data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  console.log("[video-caption] innertube: 자막 트랙 개수", {
+    count: Array.isArray(tracks) ? tracks.length : "not-array",
+    playabilityStatus: data?.playabilityStatus?.status,
+    reason: data?.playabilityStatus?.reason,
+  });
   if (!Array.isArray(tracks) || tracks.length === 0) return null;
 
   const pick = pickTrack(tracks);
-  if (!pick?.baseUrl) return null;
+  if (!pick?.baseUrl) {
+    console.log("[video-caption] innertube: baseUrl 없음");
+    return null;
+  }
 
   const text = await fetchTrackText(pick.baseUrl);
+  console.log("[video-caption] innertube: 자막 텍스트 길이", { length: text?.length ?? 0 });
   if (!text) return null;
   return { title, text };
 }
@@ -124,6 +138,7 @@ async function fetchViaWatchPage(
       Cookie: "CONSENT=YES+1",
     },
   });
+  console.log("[video-caption] watchpage: 응답 상태", { status: pageRes.status, ok: pageRes.ok });
   if (!pageRes.ok) return null;
   const html = await pageRes.text();
 
@@ -132,6 +147,10 @@ async function fetchViaWatchPage(
   const title = titleMatch ? decodeEntities(titleMatch[1]).replace(/ - YouTube$/, "") : "";
 
   const tracksMatch = html.match(/"captionTracks":(\[.*?\])/);
+  console.log("[video-caption] watchpage: captionTracks 매치 여부", {
+    found: !!tracksMatch,
+    htmlLength: html.length,
+  });
   if (!tracksMatch) return null;
 
   let tracks: CaptionTrack[];
