@@ -683,12 +683,39 @@ export default function RecipeKeeper() {
 
   async function handleTextSubmit() {
     if (!textInput.trim()) return;
-    if (isBareLink(textInput)) {
-      setLoadError("링크만으로는 내용을 읽을 수 없어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 복사해서 링크와 함께 붙여넣어주세요.");
-      return;
-    }
     setLoadError("");
     setLoading(true);
+
+    if (isBareLink(textInput)) {
+      setLoadingMsg("영상 링크에서 스크립트를 가져오는 중...");
+      try {
+        const res = await fetch("/api/recipe/video-caption", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: textInput.trim() }),
+        });
+        const data = await res.json();
+        if (data.error || !data.text) {
+          setLoadError(
+            data.error ||
+              "링크만으로는 내용을 읽을 수 없어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 복사해서 링크와 함께 붙여넣어주세요."
+          );
+          setLoading(false);
+          return;
+        }
+        setLoadingMsg("가져온 내용을 레시피로 정리하는 중...");
+        const combined = `${data.title ? `제목: ${data.title}\n\n` : ""}${data.text}`;
+        const parsed = await callClaude([{ type: "text", text: TEXT_PROMPT(combined) }]);
+        openPreview(parsed, "manual", (data.title || textInput).slice(0, 200));
+      } catch (e) {
+        setLoadError(
+          "영상 정보를 가져오는 중 문제가 생겼어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 직접 붙여넣어주세요."
+        );
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoadingMsg("텍스트를 분석해서 레시피로 정리하는 중...");
     try {
       const parsed = await callClaude([{ type: "text", text: TEXT_PROMPT(textInput) }]);
@@ -2288,7 +2315,7 @@ export default function RecipeKeeper() {
                   <div>
                     <div className="font-bold">직접입력하기</div>
                     <div style={{ color: C.muted, fontSize: 14 }}>
-                      기억나는 대로, 또는 댓글·캡션 텍스트를 그대로 적으면 AI가 재료·순서로 자동 정리해요
+                      기억나는 대로, 댓글·캡션 텍스트, 또는 유튜브 링크를 적으면 AI가 재료·순서로 자동 정리해요
                     </div>
                   </div>
                 </button>
@@ -2322,7 +2349,8 @@ export default function RecipeKeeper() {
               <div className="flex flex-col gap-3">
                 <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
                   기억나는 재료·순서를 편한 순서로 적어도 되고, <b style={{ color: C.turmeric }}>댓글·캡션 텍스트</b>를
-                  그대로 붙여넣어도 돼요. AI가 알아서 항목별로 정리해요. (링크만 달랑 넣으면 읽을 내용이 없어서 정리가 안 돼요)
+                  그대로 붙여넣어도 돼요. <b style={{ color: C.turmeric }}>유튜브 링크</b>만 붙여넣으면 자막에서 자동으로 읽어와요
+                  (인스타그램 등은 설명글이 있는 경우에만 가능해요).
                 </p>
                 <textarea
                   autoFocus

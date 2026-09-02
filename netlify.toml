@@ -15,6 +15,12 @@
   force = true
 
 [[redirects]]
+  from = "/api/recipe/video-caption"
+  to = "/.netlify/functions/video-caption"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
