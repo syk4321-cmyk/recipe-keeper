@@ -230,6 +230,7 @@ function emptyDraft() {
     photos: [],
     ingredients: [{ id: uid(), name: "", amount: "" }],
     steps: [""],
+    tips: "",
   };
 }
 
@@ -287,24 +288,49 @@ async function compressImage(file, maxDim = 900, quality = 0.72) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+// "tip1", "TIP:", "팁", "꿀팁" 등으로 시작하는 줄을 조리팁으로 인식하기 위한 키워드 패턴
+const TIP_LINE_PATTERN = /^\s*(tip\s*\d*[.:)\-]?|꿀팁\s*\d*[.:)\-]?|팁\s*\d*[.:)\-]?)/i;
+
 function parseModelJSON(data) {
   const text = (data.content || []).map((b) => b.text || "").join("\n").trim();
   const clean = text.replace(/```json|```/g, "").trim();
   const obj = JSON.parse(clean);
+
+  const rawSteps = Array.isArray(obj.steps) ? obj.steps.filter(Boolean) : [];
+  const rawTips = Array.isArray(obj.tips) ? obj.tips.filter(Boolean) : [];
+
+  // AI가 tips로 분류하지 못하고 steps에 남겨둔 tip 키워드 줄을 한 번 더 걸러내기
+  const steps = [];
+  const tipsFromSteps = [];
+  rawSteps.forEach((s) => {
+    if (TIP_LINE_PATTERN.test(s)) {
+      tipsFromSteps.push(s);
+    } else {
+      steps.push(s);
+    }
+  });
+
+  const tips = [...rawTips, ...tipsFromSteps];
+
   return {
     title: obj.title || "제목 없음",
     category: CATEGORIES.includes(obj.category) ? obj.category : "기타",
     ingredients: Array.isArray(obj.ingredients) && obj.ingredients.length
       ? obj.ingredients.map((i) => ({ id: uid(), name: i.name || "", amount: i.amount || "" }))
       : [{ id: uid(), name: "", amount: "" }],
-    steps: Array.isArray(obj.steps) && obj.steps.length ? obj.steps.filter(Boolean) : [""],
+    steps: steps.length ? steps : [""],
+    tips: tips.join("\n"),
   };
 }
 
 function TEXT_PROMPT(text) {
   return `아래는 요리 영상/게시물의 제목, 설명, 댓글 등에서 가져온 텍스트입니다. 이 내용을 분석해서 레시피 정보를 아래 JSON 형식으로만 응답하세요. 다른 설명이나 코드블록 표시 없이 JSON 객체 하나만 출력하세요.
 
-{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위, 예: 700g, 1개, 3큰술"}],"steps":["조리 순서 설명"]}
+중요한 규칙:
+- "tip1", "TIP", "팁", "꿀팁"처럼 표시되어 있거나, 순서상 조리 단계가 아니라 보충 설명·대체재료 안내인 문장은 steps가 아니라 tips 배열에 넣으세요.
+- steps에는 실제로 순서대로 따라 하는 조리 동작만 남기세요.
+
+{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위, 예: 700g, 1개, 3큰술"}],"steps":["조리 순서 설명"],"tips":["조리팁 설명"]}
 
 텍스트:
 """${text}"""`;
@@ -316,10 +342,11 @@ const IMAGE_PROMPT = `이 이미지(들)는 요리 레시피와 관련된 스크
 - 이미지에 적힌 재료명과 수량·단위(예: 700g, 3꼬집, 4T, 1개)는 절대 임의로 바꾸거나 생략하지 말고 화면에 보이는 그대로 옮기세요.
 - 수량이 실제로 안 보이는 재료만 amount를 빈 문자열로 두세요. 보이는데 "적당량"으로 뭉뚱그리지 마세요.
 - 조리 도구(후라이팬 등)는 재료 목록에 넣지 마세요.
+- "tip1", "TIP", "팁", "꿀팁"처럼 표시되어 있거나, 순서상 조리 단계가 아니라 보충 설명·대체재료 안내인 문장은 steps가 아니라 tips 배열에 넣으세요.
 
 아래 JSON 형식으로만 응답하세요. 다른 설명 없이 JSON 객체 하나만 출력하세요.
 
-{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위"}],"steps":["조리 순서"]}`;
+{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위"}],"steps":["조리 순서"],"tips":["조리팁 설명"]}`;
 
 async function callClaude(content) {
   const res = await fetch("/api/recipe/analyze", {
@@ -626,6 +653,11 @@ export default function RecipeKeeper() {
       lines.push("[조리 순서]");
       recipe.steps.forEach((step, idx) => lines.push(`${idx + 1}. ${step}`));
     }
+    if (recipe.tips && recipe.tips.trim()) {
+      lines.push("");
+      lines.push("[조리 팁]");
+      lines.push(recipe.tips.trim());
+    }
     if (recipe.note && recipe.note.trim()) {
       lines.push("");
       lines.push("[메모]");
@@ -670,6 +702,7 @@ export default function RecipeKeeper() {
       photos: recipe.photos ? [...recipe.photos] : [],
       ingredients: recipe.ingredients.map((i) => ({ ...i })),
       steps: [...recipe.steps],
+      tips: recipe.tips || "",
     });
     setIsEditingExisting(true);
     setLoadError("");
@@ -1560,6 +1593,18 @@ export default function RecipeKeeper() {
               </div>
             </div>
 
+            <div>
+              <label style={{ color: C.muted, fontSize: 14 }}>조리 팁</label>
+              <textarea
+                value={draft.tips}
+                onChange={(e) => updateDraft({ tips: e.target.value })}
+                rows={3}
+                placeholder={"예) 매운맛을 원하면 고춧가루를 추가하세요\n(tip1, 팁 등으로 표시된 내용은 자동으로 여기 모여요)"}
+                className="w-full mt-1 px-3 py-2 rounded-xl text-sm"
+                style={{ backgroundColor: C.card, color: C.paper, border: `1px solid ${C.line}` }}
+              />
+            </div>
+
             <button
               onClick={saveDraft}
               disabled={!draft.title.trim()}
@@ -1736,6 +1781,18 @@ export default function RecipeKeeper() {
                 ))}
               </div>
             </div>
+
+            {selectedRecipe.tips && selectedRecipe.tips.trim() && (
+              <div className="mb-10">
+                <h3 className="font-bold" style={{ color: C.paper }}>조리 팁</h3>
+                <div
+                  className="mt-2 p-3 rounded-xl text-sm leading-relaxed"
+                  style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.paper, whiteSpace: "pre-wrap" }}
+                >
+                  {linkify(selectedRecipe.tips)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2315,7 +2372,7 @@ export default function RecipeKeeper() {
                   <div>
                     <div className="font-bold">직접입력하기</div>
                     <div style={{ color: C.muted, fontSize: 14 }}>
-                      기억나는 대로, 댓글·캡션 텍스트, 또는 유튜브 링크를 적으면 AI가 재료·순서로 자동 정리해요
+                      기억나는 대로, 댓글·캡션 텍스트를 적으면 AI가 재료·순서로 자동 정리해요
                     </div>
                   </div>
                 </button>
@@ -2349,8 +2406,8 @@ export default function RecipeKeeper() {
               <div className="flex flex-col gap-3">
                 <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
                   기억나는 재료·순서를 편한 순서로 적어도 되고, <b style={{ color: C.turmeric }}>댓글·캡션 텍스트</b>를
-                  그대로 붙여넣어도 돼요. <b style={{ color: C.turmeric }}>유튜브 링크</b>만 붙여넣으면 자막에서 자동으로 읽어와요
-                  (인스타그램 등은 설명글이 있는 경우에만 가능해요).
+                  그대로 붙여넣어도 돼요. <b style={{ color: C.turmeric }}>인스타그램 링크</b>는 설명글이 있는 경우
+                  자동으로 읽어와요.
                 </p>
                 <textarea
                   autoFocus
