@@ -71,28 +71,37 @@ async function fetchViaInnertube(
   videoId: string,
 ): Promise<{ title: string; text: string } | null> {
   console.log("[video-caption] innertube: 요청 시작", { videoId });
-  const res = await fetch("https://www.youtube.com/youtubei/v1/player", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": ANDROID_UA,
-      "X-YouTube-Client-Name": "3",
-      "X-YouTube-Client-Version": "19.09.37",
-    },
-    body: JSON.stringify({
-      videoId,
-      context: {
-        client: {
-          clientName: "ANDROID",
-          clientVersion: "19.09.37",
-          hl: "ko",
-          gl: "KR",
-        },
+  const res = await fetch(
+    "https://www.youtube.com/youtubei/v1/player?key=AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": ANDROID_UA,
+        "X-YouTube-Client-Name": "3",
+        "X-YouTube-Client-Version": "19.09.37",
       },
-    }),
-  });
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "19.09.37",
+            androidSdkVersion: 30,
+            userAgent: ANDROID_UA,
+            hl: "ko",
+            gl: "KR",
+          },
+        },
+      }),
+    },
+  );
   console.log("[video-caption] innertube: 응답 상태", { status: res.status, ok: res.ok });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    console.log("[video-caption] innertube: 실패 응답 본문", { body: errText.slice(0, 300) });
+    return null;
+  }
 
   let data: any;
   try {
