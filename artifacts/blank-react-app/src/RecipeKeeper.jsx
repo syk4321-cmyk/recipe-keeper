@@ -3,7 +3,7 @@ import {
   Camera, Plus, X, ChevronLeft, Check, ShoppingCart,
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
-  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User,
+  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -381,6 +381,7 @@ export default function RecipeKeeper() {
   const [activeCategory, setActiveCategory] = useState("전체");
   const [shoppingList, setShoppingList] = useState([]);
   const [cartAddedFlash, setCartAddedFlash] = useState(false);
+  const [shareFlash, setShareFlash] = useState(false);
   const [manualItemName, setManualItemName] = useState("");
   const [manualItemAmount, setManualItemAmount] = useState("");
 
@@ -600,6 +601,57 @@ export default function RecipeKeeper() {
     const t = setTimeout(() => setCartAddedFlash(false), 1600);
     return () => clearTimeout(t);
   }, [cartAddedFlash]);
+  useEffect(() => {
+    if (!shareFlash) return;
+    const t = setTimeout(() => setShareFlash(false), 1600);
+    return () => clearTimeout(t);
+  }, [shareFlash]);
+
+  // 레시피를 사람이 읽기 좋은 텍스트로 정리해요 (카카오톡, 문자 등으로 공유할 때 사용)
+  function buildRecipeShareText(recipe, servings) {
+    const base = recipe.servings || 2;
+    const s = servings || base;
+    const scale = s / base;
+    const lines = [];
+    lines.push(recipe.title);
+    lines.push(`(${s}인분 기준)`);
+    lines.push("");
+    lines.push("[재료]");
+    (recipe.ingredients || []).forEach((ing) => {
+      const amt = scaleAmount(ing.amount, scale);
+      lines.push(`- ${ing.name}${amt ? ` ${amt}` : ""}`);
+    });
+    if (recipe.steps && recipe.steps.length) {
+      lines.push("");
+      lines.push("[조리 순서]");
+      recipe.steps.forEach((step, idx) => lines.push(`${idx + 1}. ${step}`));
+    }
+    if (recipe.note && recipe.note.trim()) {
+      lines.push("");
+      lines.push("[메모]");
+      lines.push(recipe.note.trim());
+    }
+    lines.push("");
+    lines.push("Cookmark(쿡마크)에서 보냄");
+    return lines.join("\n");
+  }
+
+  // 공유 시트(카카오톡, 문자, 메모 등)를 띄우고, 지원하지 않는 환경이면 클립보드로 복사해요
+  async function shareRecipeAsText(recipe, servings) {
+    const text = buildRecipeShareText(recipe, servings);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: recipe.title, text });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // 사용자가 공유를 취소함
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareFlash(true);
+    } catch (e) {}
+  }
 
   function openPreview(parsed, source, sourceNote) {
     setDraft({ ...parsed, note: "", servings: 2, photos: [], id: uid(), source, sourceNote, folder: folders[0] || "할래", createdAt: Date.now() });
@@ -1499,6 +1551,16 @@ export default function RecipeKeeper() {
           <div className="flex items-center justify-between px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <div className="flex items-center gap-4">
+              {shareFlash && (
+                <span style={{ color: C.scallion, fontSize: 12, fontWeight: 700 }}>복사됨 ✓</span>
+              )}
+              <button
+                onClick={() => shareRecipeAsText(selectedRecipe, viewServings)}
+                className="flex items-center gap-1 text-sm"
+                style={{ color: C.muted, fontWeight: 700 }}
+              >
+                <Share2 size={16} /> 공유
+              </button>
               <button
                 onClick={() => openEditExisting(selectedRecipe)}
                 className="flex items-center gap-1 text-sm"
