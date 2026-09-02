@@ -491,6 +491,7 @@ export default function RecipeKeeper() {
   const [textInput, setTextInput] = useState("");
   const [showTextBox, setShowTextBox] = useState(false);
   const [search, setSearch] = useState("");
+  const [recentSearches, setRecentSearches] = useState([]);
   const [cardLayout, setCardLayout] = useState("list"); // "list" | "grid"
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -551,6 +552,10 @@ export default function RecipeKeeper() {
           setShoppingList(migrated);
         }
       } catch (e) {}
+      try {
+        const rs = await appStorage.get("recentSearches", false);
+        if (rs && rs.value) setRecentSearches(JSON.parse(rs.value));
+      } catch (e) {}
       setReady(true);
     })();
   }, [user]);
@@ -561,6 +566,19 @@ export default function RecipeKeeper() {
   useEffect(() => { if (ready) appStorage.set("cardLayout", cardLayout, false).catch(() => {}); }, [cardLayout, ready]);
   useEffect(() => { if (ready) appStorage.set("featureSuggestions", JSON.stringify(suggestions), true).catch(() => {}); }, [suggestions, ready]);
   useEffect(() => { if (ready) appStorage.set("votedSuggestionIds", JSON.stringify(votedIds), false).catch(() => {}); }, [votedIds, ready]);
+  useEffect(() => { if (ready) appStorage.set("recentSearches", JSON.stringify(recentSearches), false).catch(() => {}); }, [recentSearches, ready]);
+
+  function addRecentSearch(term) {
+    const t = (term || "").trim();
+    if (!t) return;
+    setRecentSearches((prev) => [t, ...prev.filter((s) => s !== t)].slice(0, 10));
+  }
+  function removeRecentSearch(term) {
+    setRecentSearches((prev) => prev.filter((s) => s !== term));
+  }
+  function clearRecentSearches() {
+    setRecentSearches([]);
+  }
 
   function addSuggestion() {
     const text = newSuggestionText.trim();
@@ -830,6 +848,7 @@ export default function RecipeKeeper() {
     setCheckedIngredients({});
     const r = recipes.find((rec) => rec.id === id);
     setViewServings((r && r.servings) || 2);
+    setRecipes((prev) => prev.map((rec) => (rec.id === id ? { ...rec, viewCount: (rec.viewCount || 0) + 1 } : rec)));
     setView("detail");
   }
 
@@ -908,6 +927,19 @@ export default function RecipeKeeper() {
     return matchesFolder && matchesCategory && matchesSearch;
   });
 
+  const searchQuery = search.trim().toLowerCase();
+  const searchResults = searchQuery
+    ? recipes.filter(
+        (r) =>
+          r.title.toLowerCase().includes(searchQuery) ||
+          (r.ingredients || []).some((i) => i.name.toLowerCase().includes(searchQuery))
+      )
+    : [];
+  const topViewedRecipes = [...recipes]
+    .filter((r) => r.viewCount > 0)
+    .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+    .slice(0, 5);
+
   // ---- 로그인 확인 중 ----
   if (user === undefined) {
     return (
@@ -975,6 +1007,7 @@ export default function RecipeKeeper() {
                 ref={searchInputRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addRecentSearch(search)}
                 placeholder="이름이나 재료로 찾기 (예: 대파)"
                 className="bg-transparent flex-1 min-w-0 text-sm"
                 style={{ color: C.paper }}
@@ -1975,8 +2008,142 @@ export default function RecipeKeeper() {
         </div>
       )}
 
+      {view === "search" && (
+        <div className="flex flex-col flex-1 pb-24">
+          <div className="flex items-center gap-3 px-4 py-4">
+            <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
+            <span className="font-bold" style={{ color: C.paper }}>검색</span>
+          </div>
+
+          <div className="px-5 pb-2">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+              <Search size={16} color={C.muted} />
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addRecentSearch(search)}
+                placeholder="이름이나 재료로 찾기 (예: 대파)"
+                className="bg-transparent flex-1 min-w-0 text-sm"
+                style={{ color: C.paper }}
+              />
+              {search && (
+                <button onClick={() => setSearch("")} aria-label="검색어 지우기">
+                  <X size={14} color={C.muted} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {searchQuery === "" ? (
+            <div className="px-5 flex flex-col gap-6 mt-2">
+              {recentSearches.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.paper }}>최근 검색어</span>
+                    <button onClick={clearRecentSearches} style={{ fontSize: 11, color: C.muted }}>전체 삭제</button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {recentSearches.map((term) => (
+                      <span
+                        key={term}
+                        className="flex items-center gap-1 pl-3 pr-2 py-1.5 rounded-full text-xs"
+                        style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.paper }}
+                      >
+                        <button
+                          onClick={() => {
+                            setSearch(term);
+                            addRecentSearch(term);
+                          }}
+                          className="truncate max-w-[140px]"
+                        >
+                          {term}
+                        </button>
+                        <button onClick={() => removeRecentSearch(term)} aria-label={`${term} 검색어 삭제`}>
+                          <X size={11} color={C.muted} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {topViewedRecipes.length > 0 && (
+                <div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.paper }}>많이 찾는 레시피</span>
+                  <div className="flex flex-col gap-2 mt-2">
+                    {topViewedRecipes.map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => openDetail(r.id)}
+                        className="flex items-center gap-3 p-2.5 rounded-xl text-left"
+                        style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
+                      >
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+                          style={{ backgroundColor: C.raised }}
+                        >
+                          {r.photos && r.photos[0] ? (
+                            <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <ChefHat size={16} color={C.muted} />
+                          )}
+                        </div>
+                        <span className="text-sm truncate" style={{ color: C.paper }}>{r.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recentSearches.length === 0 && topViewedRecipes.length === 0 && (
+                <div className="text-center py-16" style={{ color: C.muted }}>
+                  <p className="text-sm">검색어를 입력해보세요.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="px-5 flex flex-col gap-2 mt-2">
+              {searchResults.length === 0 && (
+                <div className="text-center py-16" style={{ color: C.muted }}>
+                  <p className="text-sm">일치하는 레시피가 없어요.</p>
+                </div>
+              )}
+              {searchResults.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => openDetail(r.id)}
+                  className="flex items-center gap-3 p-3 rounded-2xl text-left"
+                  style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+                    style={{ backgroundColor: C.raised }}
+                  >
+                    {r.photos && r.photos[0] ? (
+                      <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <ChefHat size={20} color={C.muted} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold truncate" style={{ color: C.paper }}>{r.title}</div>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full inline-block mt-1"
+                      style={{ backgroundColor: C.emberSoft, color: C.ember, fontWeight: 700 }}
+                    >
+                      {r.folder}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ---------- BOTTOM NAV ---------- */}
-      {(view === "home" || view === "shopping" || view === "detail" || view === "account") && (
+      {(view === "home" || view === "shopping" || view === "detail" || view === "account" || view === "search") && (
         <div
           className="fixed bottom-0 left-0 right-0 max-w-md mx-auto flex items-center justify-around py-3 px-6"
           style={{ backgroundColor: C.card, borderTop: `1px solid ${C.line}` }}
@@ -1985,12 +2152,9 @@ export default function RecipeKeeper() {
             <Home size={22} />
           </button>
           <button
-            onClick={() => {
-              setView("home");
-              setTimeout(() => searchInputRef.current?.focus(), 120);
-            }}
+            onClick={() => setView("search")}
             aria-label="검색"
-            style={{ color: C.muted }}
+            style={{ color: view === "search" ? C.ember : C.muted }}
           >
             <Search size={22} />
           </button>
