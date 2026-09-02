@@ -1,6 +1,7 @@
 const MAX_TRANSCRIPT_CHARS = 12000;
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+const ANDROID_UA = "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -39,7 +40,80 @@ function extractYoutubeId(rawUrl: string): string | null {
   }
 }
 
-async function fetchYoutubeTranscript(
+type CaptionTrack = { languageCode?: string; kind?: string; baseUrl?: string };
+
+function pickTrack(tracks: CaptionTrack[]): CaptionTrack | undefined {
+  return (
+    tracks.find((t) => t.languageCode === "ko" && t.kind !== "asr") ||
+    tracks.find((t) => t.languageCode === "ko") ||
+    tracks.find((t) => t.languageCode?.startsWith("en") && t.kind !== "asr") ||
+    tracks.find((t) => t.languageCode?.startsWith("en")) ||
+    tracks[0]
+  );
+}
+
+async function fetchTrackText(baseUrl: string): Promise<string | null> {
+  const captionUrl = baseUrl.replace(/\\u0026/g, "&");
+  const capRes = await fetch(captionUrl, { headers: { "User-Agent": BROWSER_UA } });
+  if (!capRes.ok) return null;
+  const xml = await capRes.text();
+  const lines = Array.from(xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)).map((m) =>
+    decodeEntities(m[1].replace(/<[^>]+>/g, "")).trim(),
+  );
+  const text = lines.filter(Boolean).join(" ").slice(0, MAX_TRANSCRIPT_CHARS);
+  if (!text || text.length < 20) return null;
+  return text;
+}
+
+// 1차 시도: 유튜브 안드로이드 앱이 실제로 쓰는 내부 API (innertube).
+// 웹페이지를 통째로 긁는 방식보다 서버(클라우드) IP에서 차단당할 확률이 낮음.
+async function fetchViaInnertube(
+  videoId: string,
+): Promise<{ title: string; text: string } | null> {
+  const res = await fetch("https://www.youtube.com/youtubei/v1/player", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": ANDROID_UA,
+      "X-YouTube-Client-Name": "3",
+      "X-YouTube-Client-Version": "19.09.37",
+    },
+    body: JSON.stringify({
+      videoId,
+      context: {
+        client: {
+          clientName: "ANDROID",
+          clientVersion: "19.09.37",
+          hl: "ko",
+          gl: "KR",
+        },
+      },
+    }),
+  });
+  if (!res.ok) return null;
+
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    return null;
+  }
+
+  const title: string = data?.videoDetails?.title ?? "";
+  const tracks: CaptionTrack[] =
+    data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  if (!Array.isArray(tracks) || tracks.length === 0) return null;
+
+  const pick = pickTrack(tracks);
+  if (!pick?.baseUrl) return null;
+
+  const text = await fetchTrackText(pick.baseUrl);
+  if (!text) return null;
+  return { title, text };
+}
+
+// 2차 시도(폴백): 기존 방식 — 시청 페이지 HTML에서 자막 정보 긁어오기.
+async function fetchViaWatchPage(
   videoId: string,
 ): Promise<{ title: string; text: string } | null> {
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}&hl=ko&gl=KR`;
@@ -54,16 +128,13 @@ async function fetchYoutubeTranscript(
   const html = await pageRes.text();
 
   const titleMatch =
-    html.match(/"title":"([^"]*)","description"/) ||
-    html.match(/<title>([^<]*)<\/title>/);
-  const title = titleMatch
-    ? decodeEntities(titleMatch[1]).replace(/ - YouTube$/, "")
-    : "";
+    html.match(/"title":"([^"]*)","description"/) || html.match(/<title>([^<]*)<\/title>/);
+  const title = titleMatch ? decodeEntities(titleMatch[1]).replace(/ - YouTube$/, "") : "";
 
   const tracksMatch = html.match(/"captionTracks":(\[.*?\])/);
   if (!tracksMatch) return null;
 
-  let tracks: Array<{ languageCode?: string; kind?: string; baseUrl?: string }>;
+  let tracks: CaptionTrack[];
   try {
     tracks = JSON.parse(tracksMatch[1]);
   } catch {
@@ -71,27 +142,20 @@ async function fetchYoutubeTranscript(
   }
   if (!Array.isArray(tracks) || tracks.length === 0) return null;
 
-  const pick =
-    tracks.find((t) => t.languageCode === "ko" && t.kind !== "asr") ||
-    tracks.find((t) => t.languageCode === "ko") ||
-    tracks.find((t) => t.languageCode?.startsWith("en") && t.kind !== "asr") ||
-    tracks.find((t) => t.languageCode?.startsWith("en")) ||
-    tracks[0];
-
+  const pick = pickTrack(tracks);
   if (!pick?.baseUrl) return null;
 
-  const captionUrl = pick.baseUrl.replace(/\\u0026/g, "&");
-  const capRes = await fetch(captionUrl, { headers: { "User-Agent": BROWSER_UA } });
-  if (!capRes.ok) return null;
-  const xml = await capRes.text();
-
-  const lines = Array.from(xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)).map((m) =>
-    decodeEntities(m[1].replace(/<[^>]+>/g, "")).trim(),
-  );
-  const text = lines.filter(Boolean).join(" ").slice(0, MAX_TRANSCRIPT_CHARS);
-
-  if (!text || text.length < 20) return null;
+  const text = await fetchTrackText(pick.baseUrl);
+  if (!text) return null;
   return { title, text };
+}
+
+async function fetchYoutubeTranscript(
+  videoId: string,
+): Promise<{ title: string; text: string } | null> {
+  const viaInnertube = await fetchViaInnertube(videoId).catch(() => null);
+  if (viaInnertube) return viaInnertube;
+  return fetchViaWatchPage(videoId).catch(() => null);
 }
 
 async function fetchOgDescription(
