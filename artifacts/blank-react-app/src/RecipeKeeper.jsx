@@ -1751,6 +1751,13 @@ export default function RecipeKeeper() {
               <div className="text-center py-16" style={{ color: C.muted }}>
                 <div style={{ fontSize: 36 }}>🧺</div>
                 <p className="mt-3 text-sm">레시피에서 재료를 담으면 여기에 모여요.</p>
+                <button
+                  onClick={() => setView("cartEdit")}
+                  className="mt-4 px-4 py-2 rounded-xl text-sm inline-flex items-center gap-1"
+                  style={{ backgroundColor: C.emberSoft, color: C.ember, fontWeight: 700 }}
+                >
+                  <Plus size={14} /> 재료 직접 추가
+                </button>
               </div>
             ) : (
               <>
