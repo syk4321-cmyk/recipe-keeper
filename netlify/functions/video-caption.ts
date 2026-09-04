@@ -225,10 +225,16 @@ async function fetchYoutubeDescriptionViaApi(
   });
 
   // 쇼츠는 설명란 없이 제목에 레시피를 다 적는 경우가 많음.
-  // 설명이 있으면 설명을, 없으면 제목을 본문으로 사용한다.
-  // (제목은 응답의 title 필드로 별도 전달되어 프론트에서 "제목: ..."로 붙기 때문에 중복 방지)
-  const text = description.trim().length >= 10 ? description : title;
-  if (!text || text.trim().length < 10) return null;
+  // 단, 짧은 마케팅용 제목("~레시피!")은 재료·순서가 없어 쓸모없으므로
+  // 어느 정도 길어서 실제 내용이 있을 때만(60자 이상) 제목으로 대체한다.
+  // 그보다 짧으면 이 단계 전체를 실패로 처리해 댓글 폴백으로 넘어가게 한다.
+  let text = "";
+  if (description.trim().length >= 10) {
+    text = description;
+  } else if (title.trim().length >= 60) {
+    text = title;
+  }
+  if (!text) return null;
   return { title, text: text.slice(0, MAX_TRANSCRIPT_CHARS) };
 }
 
