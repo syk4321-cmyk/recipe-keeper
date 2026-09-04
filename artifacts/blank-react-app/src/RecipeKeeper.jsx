@@ -3,7 +3,7 @@ import {
   Camera, Plus, X, ChevronLeft, Check, ShoppingCart,
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
-  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2,
+  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -518,6 +518,8 @@ export default function RecipeKeeper() {
   }
   const [textInput, setTextInput] = useState("");
   const [showTextBox, setShowTextBox] = useState(false);
+  const [linkInput, setLinkInput] = useState("");
+  const [showLinkBox, setShowLinkBox] = useState(false);
   const [search, setSearch] = useState("");
   const [recentSearches, setRecentSearches] = useState([]);
   const [cardLayout, setCardLayout] = useState("list"); // "list" | "grid"
@@ -691,6 +693,8 @@ export default function RecipeKeeper() {
     setShowAddSheet(false);
     setShowTextBox(false);
     setTextInput("");
+    setShowLinkBox(false);
+    setLinkInput("");
     setView("preview");
   }
 
@@ -714,38 +718,45 @@ export default function RecipeKeeper() {
     return /^https?:\/\/\S+$/i.test(t) && !t.includes(" ") && !t.includes("\n");
   }
 
+  // 유튜브/인스타 링크 하나를 받아 자막·캡션을 가져오고 AI로 레시피를 정리한다.
+  // "직접입력하기"(자유 텍스트 안에 링크만 붙여넣은 경우)와
+  // "유튜브·인스타 링크"(링크 전용 입력창) 두 곳에서 공용으로 사용.
+  async function fetchRecipeFromLink(rawUrl, fallbackLabel) {
+    setLoadingMsg("영상 링크에서 스크립트를 가져오는 중...");
+    try {
+      const res = await fetch("/api/recipe/video-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: rawUrl.trim() }),
+      });
+      const data = await res.json();
+      if (data.error || !data.text) {
+        setLoadError(
+          data.error ||
+            "링크만으로는 내용을 읽을 수 없어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 복사해서 직접입력하기에 붙여넣어주세요."
+        );
+        setLoading(false);
+        return;
+      }
+      setLoadingMsg("가져온 내용을 레시피로 정리하는 중...");
+      const combined = `${data.title ? `제목: ${data.title}\n\n` : ""}${data.text}`;
+      const parsed = await callClaude([{ type: "text", text: TEXT_PROMPT(combined) }]);
+      openPreview(parsed, "manual", (data.title || fallbackLabel).slice(0, 200));
+    } catch (e) {
+      setLoadError(
+        "영상 정보를 가져오는 중 문제가 생겼어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 직접입력하기에 붙여넣어주세요."
+      );
+    }
+    setLoading(false);
+  }
+
   async function handleTextSubmit() {
     if (!textInput.trim()) return;
     setLoadError("");
     setLoading(true);
 
     if (isBareLink(textInput)) {
-      setLoadingMsg("영상 링크에서 스크립트를 가져오는 중...");
-      try {
-        const res = await fetch("/api/recipe/video-caption", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: textInput.trim() }),
-        });
-        const data = await res.json();
-        if (data.error || !data.text) {
-          setLoadError(
-            data.error ||
-              "링크만으로는 내용을 읽을 수 없어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 복사해서 링크와 함께 붙여넣어주세요."
-          );
-          setLoading(false);
-          return;
-        }
-        setLoadingMsg("가져온 내용을 레시피로 정리하는 중...");
-        const combined = `${data.title ? `제목: ${data.title}\n\n` : ""}${data.text}`;
-        const parsed = await callClaude([{ type: "text", text: TEXT_PROMPT(combined) }]);
-        openPreview(parsed, "manual", (data.title || textInput).slice(0, 200));
-      } catch (e) {
-        setLoadError(
-          "영상 정보를 가져오는 중 문제가 생겼어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 직접 붙여넣어주세요."
-        );
-      }
-      setLoading(false);
+      await fetchRecipeFromLink(textInput, textInput);
       return;
     }
 
@@ -758,6 +769,17 @@ export default function RecipeKeeper() {
       openPreview(emptyDraft(), "manual", textInput.slice(0, 200));
     }
     setLoading(false);
+  }
+
+  async function handleLinkSubmit() {
+    if (!linkInput.trim()) return;
+    if (!isBareLink(linkInput)) {
+      setLoadError("올바른 링크 형태가 아니에요. 링크 주소만 붙여넣어주세요.");
+      return;
+    }
+    setLoadError("");
+    setLoading(true);
+    await fetchRecipeFromLink(linkInput, linkInput);
   }
 
   async function handlePhotoPick(e) {
@@ -2356,11 +2378,27 @@ export default function RecipeKeeper() {
           <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>레시피 담기</h3>
-              <button onClick={() => { setShowAddSheet(false); setShowTextBox(false); setLoadError(""); }}><X size={22} color={C.muted} /></button>
+              <button onClick={() => { setShowAddSheet(false); setShowTextBox(false); setShowLinkBox(false); setLoadError(""); }}><X size={22} color={C.muted} /></button>
             </div>
 
-            {!showTextBox ? (
+            {!showTextBox && !showLinkBox ? (
               <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => { setShowLinkBox(true); setLoadError(""); }}
+                  className="flex items-center gap-3 p-3 rounded-2xl text-left"
+                  style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "#E0433B" }}>
+                    <Link2 size={20} color="#fff" />
+                  </div>
+                  <div>
+                    <div className="font-bold">유튜브·인스타 링크</div>
+                    <div style={{ color: C.muted, fontSize: 14 }}>
+                      영상이나 게시물 링크를 붙여넣으면 자막·캡션을 자동으로 가져와요
+                    </div>
+                  </div>
+                </button>
+
                 <button
                   onClick={() => { setShowTextBox(true); setLoadError(""); }}
                   className="flex items-center gap-3 p-3 rounded-2xl text-left"
@@ -2402,12 +2440,50 @@ export default function RecipeKeeper() {
                   onChange={handlePhotoPick}
                 />
               </div>
+            ) : showLinkBox ? (
+              <div className="flex flex-col gap-3">
+                <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                  <b style={{ color: C.turmeric }}>유튜브 영상</b> 또는 <b style={{ color: C.turmeric }}>인스타그램 게시물</b> 링크를
+                  붙여넣어주세요. 자막이나 설명글이 있으면 자동으로 가져와서 정리해요.
+                </p>
+                <input
+                  autoFocus
+                  type="url"
+                  inputMode="url"
+                  value={linkInput}
+                  onChange={(e) => { setLinkInput(e.target.value); if (loadError) setLoadError(""); }}
+                  placeholder="https://youtube.com/... 또는 https://instagram.com/..."
+                  className="w-full p-3 rounded-xl text-sm"
+                  style={{ backgroundColor: C.card, color: C.paper, border: `1px solid ${loadError ? C.ember : C.line}` }}
+                />
+                {loadError && (
+                  <div className="px-3 py-2 rounded-lg text-sm" style={{ backgroundColor: C.emberSoft, color: C.ember }}>
+                    {loadError}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowLinkBox(false); setLinkInput(""); setLoadError(""); }}
+                    className="flex-1 py-3 rounded-xl font-bold"
+                    style={{ backgroundColor: C.raised, color: C.muted }}
+                  >
+                    뒤로
+                  </button>
+                  <button
+                    onClick={handleLinkSubmit}
+                    disabled={!linkInput.trim()}
+                    className="flex-1 py-3 rounded-xl font-bold"
+                    style={{ backgroundColor: C.ember, color: C.ink, opacity: linkInput.trim() ? 1 : 0.5 }}
+                  >
+                    가져오기
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col gap-3">
                 <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
                   기억나는 재료·순서를 편한 순서로 적어도 되고, <b style={{ color: C.turmeric }}>댓글·캡션 텍스트</b>를
-                  그대로 붙여넣어도 돼요. <b style={{ color: C.turmeric }}>인스타그램 링크</b>는 설명글이 있는 경우
-                  자동으로 읽어와요.
+                  그대로 붙여넣어도 돼요.
                 </p>
                 <textarea
                   autoFocus
