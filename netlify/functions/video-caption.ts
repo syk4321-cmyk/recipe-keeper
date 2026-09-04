@@ -186,6 +186,43 @@ async function fetchYoutubeTranscript(
   return fetchViaWatchPage(videoId).catch(() => null);
 }
 
+// 3차 시도(최종 폴백): 자막이 아예 없는 영상(요리 쇼츠에 흔함)을 위해
+// YouTube Data API v3로 영상 설명(description)란을 가져온다.
+// 많은 요리 채널이 자막 대신 설명란에 재료·순서 전문을 적어두기 때문.
+async function fetchYoutubeDescriptionViaApi(
+  videoId: string,
+): Promise<{ title: string; text: string } | null> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) {
+    console.log("[video-caption] youtube-api: YOUTUBE_API_KEY 없음, 건너뜀");
+    return null;
+  }
+
+  const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`;
+  const res = await fetch(apiUrl);
+  console.log("[video-caption] youtube-api: 응답 상태", { status: res.status, ok: res.ok });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    console.log("[video-caption] youtube-api: 실패 응답 본문", { body: errText.slice(0, 300) });
+    return null;
+  }
+
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    return null;
+  }
+
+  const snippet = data?.items?.[0]?.snippet;
+  const title: string = snippet?.title ?? "";
+  const description: string = snippet?.description ?? "";
+  console.log("[video-caption] youtube-api: 설명 길이", { length: description.length });
+
+  if (!description || description.trim().length < 20) return null;
+  return { title, text: description.slice(0, MAX_TRANSCRIPT_CHARS) };
+}
+
 async function fetchOgDescription(
   rawUrl: string,
 ): Promise<{ title: string; text: string } | null> {
@@ -262,21 +299,32 @@ export default async function handler(request: Request): Promise<Response> {
       if (!videoId) {
         return jsonResponse({ error: "유튜브 영상 주소를 인식하지 못했어요." }, 422);
       }
-      const result = await fetchYoutubeTranscript(videoId);
-      if (!result || !result.text) {
-        return jsonResponse(
-          {
-            error:
-              "이 영상은 자막(스크립트)을 가져올 수 없었어요. 설명이나 댓글에 적힌 재료·순서 텍스트를 직접 붙여넣어주세요.",
-          },
-          422,
-        );
+      const transcript = await fetchYoutubeTranscript(videoId);
+      if (transcript && transcript.text) {
+        return jsonResponse({
+          source: "youtube_transcript",
+          title: transcript.title,
+          text: transcript.text,
+        });
       }
-      return jsonResponse({
-        source: "youtube_transcript",
-        title: result.title,
-        text: result.text,
-      });
+
+      // 자막이 없으면 영상 설명(description)란으로 재시도
+      const viaDescription = await fetchYoutubeDescriptionViaApi(videoId).catch(() => null);
+      if (viaDescription && viaDescription.text) {
+        return jsonResponse({
+          source: "youtube_description",
+          title: viaDescription.title,
+          text: viaDescription.text,
+        });
+      }
+
+      return jsonResponse(
+        {
+          error:
+            "이 영상은 자막·설명글을 가져올 수 없었어요. 설명이나 댓글에 적힌 재료·순서 텍스트를 직접 붙여넣어주세요.",
+        },
+        422,
+      );
     }
 
     const result = await fetchOgDescription(rawUrl);
