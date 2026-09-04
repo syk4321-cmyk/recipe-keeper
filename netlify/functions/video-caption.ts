@@ -217,10 +217,59 @@ async function fetchYoutubeDescriptionViaApi(
   const snippet = data?.items?.[0]?.snippet;
   const title: string = snippet?.title ?? "";
   const description: string = snippet?.description ?? "";
-  console.log("[video-caption] youtube-api: 설명 길이", { length: description.length });
+  console.log("[video-caption] youtube-api: 응답 상세", {
+    itemsCount: Array.isArray(data?.items) ? data.items.length : "not-array",
+    title,
+    titleLength: title.length,
+    descriptionLength: description.length,
+  });
 
-  if (!description || description.trim().length < 20) return null;
-  return { title, text: description.slice(0, MAX_TRANSCRIPT_CHARS) };
+  // 쇼츠는 설명란 없이 제목에 레시피를 다 적는 경우가 많음.
+  // 설명이 있으면 설명을, 없으면 제목을 본문으로 사용한다.
+  // (제목은 응답의 title 필드로 별도 전달되어 프론트에서 "제목: ..."로 붙기 때문에 중복 방지)
+  const text = description.trim().length >= 10 ? description : title;
+  if (!text || text.trim().length < 10) return null;
+  return { title, text: text.slice(0, MAX_TRANSCRIPT_CHARS) };
+}
+
+// 4차 시도(마지막 폴백): 요리 쇼츠는 설명·제목 없이 "댓글"에 레시피 전문을
+// 적어두는 경우가 흔함 (특히 채널 운영자가 직접 단 첫 댓글). 관련성순 상위
+// 댓글 중 가장 레시피처럼 긴 텍스트를 골라온다.
+async function fetchYoutubeTopComment(videoId: string): Promise<{ text: string } | null> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return null;
+
+  const apiUrl = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&order=relevance&maxResults=10&key=${apiKey}`;
+  const res = await fetch(apiUrl);
+  console.log("[video-caption] youtube-comments: 응답 상태", { status: res.status, ok: res.ok });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    console.log("[video-caption] youtube-comments: 실패 응답 본문", { body: errText.slice(0, 300) });
+    return null;
+  }
+
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    return null;
+  }
+
+  const items: any[] = Array.isArray(data?.items) ? data.items : [];
+  const texts: string[] = items
+    .map((item) => item?.snippet?.topLevelComment?.snippet?.textOriginal ?? "")
+    .filter(Boolean);
+  console.log("[video-caption] youtube-comments: 댓글 개수·최대 길이", {
+    count: texts.length,
+    maxLength: texts.reduce((max, t) => Math.max(max, t.length), 0),
+  });
+
+  // 레시피처럼 보일 만큼 긴 댓글(재료·순서를 적으려면 최소 이 정도는 됨) 중 가장 긴 것을 선택.
+  const candidate = texts
+    .filter((t) => t.trim().length >= 80)
+    .sort((a, b) => b.length - a.length)[0];
+  if (!candidate) return null;
+  return { text: candidate.slice(0, MAX_TRANSCRIPT_CHARS) };
 }
 
 async function fetchOgDescription(
@@ -311,10 +360,23 @@ export default async function handler(request: Request): Promise<Response> {
       // 자막이 없으면 영상 설명(description)란으로 재시도
       const viaDescription = await fetchYoutubeDescriptionViaApi(videoId).catch(() => null);
       if (viaDescription && viaDescription.text) {
+        // text가 제목과 동일하다는 건 설명이 비어서 제목으로 대체한 경우 →
+        // title을 따로 또 보내면 프론트에서 "제목: X\n\nX"로 중복 표시되니 생략.
+        const isTitleFallback = viaDescription.text === viaDescription.title;
         return jsonResponse({
           source: "youtube_description",
-          title: viaDescription.title,
+          title: isTitleFallback ? "" : viaDescription.title,
           text: viaDescription.text,
+        });
+      }
+
+      // 그마저도 없으면 댓글(특히 채널 운영자가 남긴 레시피 댓글)로 최종 재시도
+      const viaComment = await fetchYoutubeTopComment(videoId).catch(() => null);
+      if (viaComment && viaComment.text) {
+        return jsonResponse({
+          source: "youtube_comment",
+          title: "",
+          text: viaComment.text,
         });
       }
 
