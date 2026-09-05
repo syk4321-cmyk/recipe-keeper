@@ -459,9 +459,6 @@ export default function RecipeKeeper() {
 
   useEffect(() => {
     function handlePopState() {
-      const msg = `popstate 발생 #${Date.now() % 100000} / view=${viewRef.current} / addSheet=${showAddSheetRef.current} / histLen=${viewHistoryRef.current.length}`;
-      try { localStorage.setItem("cookmark_debug_back", msg); } catch (e) {}
-      setDebugBackLog(msg);
       // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
       if (showAddSheetRef.current) {
         pushBackGuard();
@@ -548,13 +545,6 @@ export default function RecipeKeeper() {
   const [showMoveFolder, setShowMoveFolder] = useState(false);
   const [showCategoryManage, setShowCategoryManage] = useState(false);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(null);
-  const [debugBackLog, setDebugBackLog] = useState("");
-  useEffect(() => {
-    try {
-      const last = localStorage.getItem("cookmark_debug_back");
-      if (last) setDebugBackLog("(지난 기록) " + last);
-    } catch (e) {}
-  }, []);
   showAddSheetRef.current = showAddSheet;
   confirmDeleteIdRef.current = confirmDeleteId;
   showFolderManageRef.current = showFolderManage;
@@ -3060,16 +3050,6 @@ export default function RecipeKeeper() {
         <div className="fixed inset-0 flex flex-col items-center justify-center max-w-md mx-auto z-30" style={{ backgroundColor: "#000000cc" }}>
           <Loader2 size={32} className="animate-spin" color={C.turmeric} />
           <p className="mt-3 text-sm" style={{ color: C.ink }}>{loadingMsg}</p>
-        </div>
-      )}
-
-      {/* ---------- (임시) 뒤로가기 디버그 표시 ---------- */}
-      {debugBackLog && (
-        <div
-          className="fixed top-0 left-0 right-0 max-w-md mx-auto px-3 py-2 text-center z-50"
-          style={{ backgroundColor: "#00000099", color: "#FFEE88", fontSize: 11, fontFamily: "monospace" }}
-        >
-          {debugBackLog}
         </div>
       )}
 
