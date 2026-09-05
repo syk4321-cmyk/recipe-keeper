@@ -228,7 +228,7 @@ function emptyDraft() {
     note: "",
     servings: 2,
     photos: [],
-    ingredients: [{ id: uid(), name: "", amount: "" }],
+    ingredients: [{ id: uid(), name: "", amount: "", isSauce: false }],
     steps: [""],
     tips: "",
   };
@@ -316,8 +316,8 @@ function parseModelJSON(data) {
     title: obj.title || "제목 없음",
     category: CATEGORIES.includes(obj.category) ? obj.category : "기타",
     ingredients: Array.isArray(obj.ingredients) && obj.ingredients.length
-      ? obj.ingredients.map((i) => ({ id: uid(), name: i.name || "", amount: i.amount || "" }))
-      : [{ id: uid(), name: "", amount: "" }],
+      ? obj.ingredients.map((i) => ({ id: uid(), name: i.name || "", amount: i.amount || "", isSauce: !!i.isSauce }))
+      : [{ id: uid(), name: "", amount: "", isSauce: false }],
     steps: steps.length ? steps : [""],
     tips: tips.join("\n"),
   };
@@ -329,8 +329,9 @@ function TEXT_PROMPT(text) {
 중요한 규칙:
 - "tip1", "TIP", "팁", "꿀팁"처럼 표시되어 있거나, 순서상 조리 단계가 아니라 보충 설명·대체재료 안내인 문장은 steps가 아니라 tips 배열에 넣으세요.
 - steps에는 실제로 순서대로 따라 하는 조리 동작만 남기세요.
+- 재료 중 "양념", "양념장", "소스", "드레싱" 등으로 별도로 묶여 있는 재료는 isSauce를 true로, 그 외 일반 재료는 isSauce를 false로 표시하세요. 별도로 묶인 양념 그룹이 없으면 모든 재료를 isSauce: false로 두세요.
 
-{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위, 예: 700g, 1개, 3큰술"}],"steps":["조리 순서 설명"],"tips":["조리팁 설명"]}
+{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위, 예: 700g, 1개, 3큰술","isSauce":false}],"steps":["조리 순서 설명"],"tips":["조리팁 설명"]}
 
 텍스트:
 """${text}"""`;
@@ -343,10 +344,11 @@ const IMAGE_PROMPT = `이 이미지(들)는 요리 레시피와 관련된 스크
 - 수량이 실제로 안 보이는 재료만 amount를 빈 문자열로 두세요. 보이는데 "적당량"으로 뭉뚱그리지 마세요.
 - 조리 도구(후라이팬 등)는 재료 목록에 넣지 마세요.
 - "tip1", "TIP", "팁", "꿀팁"처럼 표시되어 있거나, 순서상 조리 단계가 아니라 보충 설명·대체재료 안내인 문장은 steps가 아니라 tips 배열에 넣으세요.
+- 재료 중 "양념", "양념장", "소스", "드레싱" 등으로 별도로 묶여 있는 재료는 isSauce를 true로, 그 외 일반 재료는 isSauce를 false로 표시하세요. 별도로 묶인 양념 그룹이 없으면 모든 재료를 isSauce: false로 두세요.
 
 아래 JSON 형식으로만 응답하세요. 다른 설명 없이 JSON 객체 하나만 출력하세요.
 
-{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위"}],"steps":["조리 순서"],"tips":["조리팁 설명"]}`;
+{"title":"요리 이름","category":"한식|중식|일식|양식|디저트|기타","ingredients":[{"name":"재료명","amount":"수량과 단위","isSauce":false}],"steps":["조리 순서"],"tips":["조리팁 설명"]}`;
 
 async function callClaude(content) {
   const res = await fetch("/api/recipe/analyze", {
@@ -835,7 +837,7 @@ export default function RecipeKeeper() {
     setDraft((d) => ({ ...d, ingredients: d.ingredients.map((i) => (i.id === id ? { ...i, ...patch } : i)) }));
   }
   function addIngredientRow() {
-    setDraft((d) => ({ ...d, ingredients: [...d.ingredients, { id: uid(), name: "", amount: "" }] }));
+    setDraft((d) => ({ ...d, ingredients: [...d.ingredients, { id: uid(), name: "", amount: "", isSauce: false }] }));
   }
   function removeIngredientRow(id) {
     setDraft((d) => ({ ...d, ingredients: d.ingredients.filter((i) => i.id !== id) }));
@@ -1556,6 +1558,16 @@ export default function RecipeKeeper() {
                       className="w-20 shrink-0 bg-transparent text-sm text-right"
                       style={{ color: C.turmeric, fontFamily: "'IBM Plex Mono', monospace" }}
                     />
+                    <button
+                      onClick={() => updateIngredient(ing.id, { isSauce: !ing.isSauce })}
+                      className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold"
+                      style={{
+                        backgroundColor: ing.isSauce ? C.turmeric : C.raised,
+                        color: ing.isSauce ? C.ink : C.muted,
+                      }}
+                    >
+                      양념
+                    </button>
                     <button onClick={() => removeIngredientRow(ing.id)} style={{ color: C.muted }}>
                       <Trash2 size={14} />
                     </button>
@@ -1758,7 +1770,7 @@ export default function RecipeKeeper() {
               </div>
 
               <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-                {selectedRecipe.ingredients.map((ing) => (
+                {selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => (
                   <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1773,6 +1785,31 @@ export default function RecipeKeeper() {
                     </div>
                   </label>
                 ))}
+                {selectedRecipe.ingredients.some((ing) => ing.isSauce) && (
+                  <>
+                    <p
+                      className="text-xs font-bold mt-2 pt-2"
+                      style={{ color: C.turmeric, borderTop: `1px dashed ${C.line}` }}
+                    >
+                      양념
+                    </p>
+                    {selectedRecipe.ingredients.filter((ing) => ing.isSauce).map((ing) => (
+                      <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!checkedIngredients[ing.id]}
+                          onChange={(e) => setCheckedIngredients((prev) => ({ ...prev, [ing.id]: e.target.checked }))}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <ReceiptRow
+                            name={ing.name}
+                            amount={scaleAmount(ing.amount, viewServings / (selectedRecipe.servings || 2))}
+                          />
+                        </div>
+                      </label>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
 
