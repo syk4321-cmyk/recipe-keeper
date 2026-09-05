@@ -1281,8 +1281,8 @@ export default function RecipeKeeper() {
         @keyframes sheetSlideUpIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .sheet-backdrop { animation: sheetBackdropIn 0.25s ease-out; }
         .sheet-content { animation: sheetSlideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes pageFadeSlideIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
-        .page-enter { animation: pageFadeSlideIn 0.22s ease-out; }
+        @keyframes pageFadeSlideIn { from { opacity: 1; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .page-enter { animation: pageFadeSlideIn 0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
       `}</style>
 
       {/* ---------- HOME ---------- */}
