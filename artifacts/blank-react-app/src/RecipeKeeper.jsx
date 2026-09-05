@@ -3098,7 +3098,7 @@ export default function RecipeKeeper() {
           style={{ bottom: 100, backgroundColor: C.ember, color: "#FFFFFF", boxShadow: "0 4px 16px #00000055" }}
         >
           <img src={COOKMARK_LOGO} alt="쿡마크 로고" style={{ width: 28, height: 28, borderRadius: 8 }} />
-          <span className="text-sm font-bold">'뒤로' 버튼을 한 번 더 누르시면 종료돼요</span>
+          <span className="text-sm font-bold">'뒤로' 버튼을 한번 더 누르면<br />종료됩니다.</span>
         </div>
       )}
     </div>
