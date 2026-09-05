@@ -229,9 +229,13 @@ async function fetchYoutubeDescriptionViaApi(
   // 어느 정도 길어서 실제 내용이 있을 때만(60자 이상) 제목으로 대체한다.
   // 그보다 짧으면 이 단계 전체를 실패로 처리해 댓글 폴백으로 넘어가게 한다.
   let text = "";
-  if (description.trim().length >= 10) {
+  // 진짜 레시피(재료·순서)가 담기려면 최소 이 정도 분량은 필요함.
+  // 너무 낮게 잡으면 "오늘은 ○○ 먹을거에요" 같은 짧은 문구도 통과해버려서
+  // 다음 단계(댓글 찾기)로 못 넘어가는 문제가 생김.
+  const MIN_USABLE_LENGTH = 60;
+  if (description.trim().length >= MIN_USABLE_LENGTH) {
     text = description;
-  } else if (title.trim().length >= 60) {
+  } else if (title.trim().length >= MIN_USABLE_LENGTH) {
     text = title;
   }
   if (!text) return null;
@@ -317,19 +321,31 @@ async function fetchInstagramViaApify(
       return null;
     }
 
-    const item = Array.isArray(data) ? data[0] : null;
-    // Actor마다 캡션 필드명이 조금씩 다를 수 있어 방어적으로 여러 후보를 확인.
-    const caption: string =
-      item?.caption ??
-      item?.text ??
-      item?.edge_media_to_caption?.edges?.[0]?.node?.text ??
-      "";
+    const items: any[] = Array.isArray(data) ? data : [];
+    console.log("[video-caption] apify: 원본 아이템 요약", {
+      count: items.length,
+      firstItemKeys: items[0] ? Object.keys(items[0]) : [],
+      firstItemSample: items[0] ? JSON.stringify(items[0]).slice(0, 500) : null,
+    });
+
+    // Actor마다 캡션 필드명이 조금씩 다르고, 결과 배열에 게시물 외 다른
+    // 항목(댓글 등)이 섞여 올 수도 있어 모든 항목을 훑어 가장 긴 후보를 채택.
+    const candidates: string[] = items
+      .map(
+        (it) =>
+          it?.caption ??
+          it?.text ??
+          it?.edge_media_to_caption?.edges?.[0]?.node?.text ??
+          "",
+      )
+      .filter((c) => typeof c === "string" && c.trim().length >= 15);
+    const caption = candidates.sort((a, b) => b.length - a.length)[0] ?? "";
     console.log("[video-caption] apify: 캡션 길이", {
-      itemsCount: Array.isArray(data) ? data.length : 0,
+      candidatesCount: candidates.length,
       captionLength: caption.length,
     });
 
-    if (!caption || caption.trim().length < 10) return null;
+    if (!caption) return null;
     return { title: "", text: caption.slice(0, MAX_TRANSCRIPT_CHARS) };
   } catch (error) {
     console.log("[video-caption] apify: 예외 발생", {
