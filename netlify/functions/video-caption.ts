@@ -304,7 +304,11 @@ async function fetchInstagramViaApify(
     const res = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ startUrls: [rawUrl], maxItems: 1 }),
+      body: JSON.stringify({
+        directUrls: [rawUrl],
+        resultsType: "details",
+        resultsLimit: 1,
+      }),
       signal: controller.signal,
     });
     console.log("[video-caption] apify: 응답 상태", { status: res.status, ok: res.ok });
