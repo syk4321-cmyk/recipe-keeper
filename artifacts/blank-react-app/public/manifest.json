@@ -1,6 +1,6 @@
 {
-  "name": "쿡마크",
-  "short_name": "쿡마크",
+  "name": "Cookmark",
+  "short_name": "Cookmark",
   "description": "사진과 메모에서 레시피를 정리하고 장보기 목록과 요리 모드로 활용하는 레시피 관리 앱",
   "lang": "ko",
   "dir": "ltr",
@@ -16,13 +16,25 @@
       "src": "/icons/cookmark-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/cookmark-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/cookmark-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/cookmark-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
