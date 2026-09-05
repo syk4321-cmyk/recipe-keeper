@@ -297,7 +297,10 @@ async function fetchInstagramViaApify(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  // Apify가 실제로 인스타그램 페이지를 열어 스크래핑하는 데는 보통
+  // 10~20초 이상 걸림. 8초는 너무 짧아 항상 중간에 끊겼었음.
+  // Netlify Pro 함수 실행 제한(26초) 안에서 최대한 여유를 준다.
+  const timeout = setTimeout(() => controller.abort(), 22000);
 
   try {
     const apiUrl = `https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items?token=${apifyToken}`;
