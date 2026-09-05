@@ -1281,11 +1281,13 @@ export default function RecipeKeeper() {
         @keyframes sheetSlideUpIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .sheet-backdrop { animation: sheetBackdropIn 0.25s ease-out; }
         .sheet-content { animation: sheetSlideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes pageFadeSlideIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+        .page-enter { animation: pageFadeSlideIn 0.22s ease-out; }
       `}</style>
 
       {/* ---------- HOME ---------- */}
       {view === "home" && (
-        <div className="flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-24">
           <div className="px-5 pt-6 pb-2 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -1490,7 +1492,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- PREVIEW / EDIT ---------- */}
       {view === "preview" && draft && (
-        <div className="flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-24">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={requestLeaveEdit}>
               <X size={22} color={C.paper} />
@@ -1879,7 +1881,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- DETAIL ---------- */}
       {view === "detail" && selectedRecipe && (
-        <div className="flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-24">
           <div className="flex items-center justify-between px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <div className="flex items-center gap-4">
@@ -2084,7 +2086,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- COOKING MODE ---------- */}
       {view === "cooking" && selectedRecipe && (
-        <div className="flex flex-col flex-1" style={{ minHeight: "100%" }}>
+        <div className="page-enter flex flex-col flex-1" style={{ minHeight: "100%" }}>
           <div className="flex items-center justify-between px-4 py-4">
             <button onClick={exitCooking}><X size={24} color={C.paper} /></button>
             <span style={{ color: C.muted, fontSize: 15, fontWeight: 700 }}>
@@ -2172,7 +2174,7 @@ export default function RecipeKeeper() {
       )}
 
       {view === "shopping" && (
-        <div className="flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-24">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>장바구니</span>
@@ -2241,7 +2243,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- 장바구니 수정 페이지 ---------- */}
       {view === "cartEdit" && (
-        <div className="flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-24">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("shopping")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>장바구니 수정</span>
@@ -2331,7 +2333,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- FEATURE SUGGESTIONS (공유 데이터) ---------- */}
       {view === "features" && (
-        <div className="flex flex-col flex-1 pb-10">
+        <div className="page-enter flex flex-col flex-1 pb-10">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>기능 제안</span>
@@ -2410,7 +2412,7 @@ export default function RecipeKeeper() {
       )}
 
       {view === "account" && (
-        <div className="flex flex-col flex-1 pb-10">
+        <div className="page-enter flex flex-col flex-1 pb-10">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>계정 정보</span>
@@ -2447,7 +2449,7 @@ export default function RecipeKeeper() {
       )}
 
       {view === "search" && (
-        <div className="flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-24">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>검색</span>
