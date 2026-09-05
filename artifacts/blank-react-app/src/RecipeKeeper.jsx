@@ -462,7 +462,7 @@ export default function RecipeKeeper() {
       // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
       if (showAddSheetRef.current) {
         pushBackGuard();
-        setShowAddSheet(false);
+        closeAddSheet();
         return;
       }
       if (confirmDeleteIdRef.current) {
@@ -472,7 +472,7 @@ export default function RecipeKeeper() {
       }
       if (showFolderManageRef.current) {
         pushBackGuard();
-        setShowFolderManage(false);
+        closeFolderManage();
         return;
       }
       if (confirmDeleteFolderRef.current) {
@@ -487,7 +487,7 @@ export default function RecipeKeeper() {
       }
       if (showCategoryManageRef.current) {
         pushBackGuard();
-        setShowCategoryManage(false);
+        closeCategoryManage();
         return;
       }
       if (confirmDeleteCategoryRef.current) {
@@ -545,6 +545,34 @@ export default function RecipeKeeper() {
   const [showMoveFolder, setShowMoveFolder] = useState(false);
   const [showCategoryManage, setShowCategoryManage] = useState(false);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(null);
+  // 닫힐 때 아래로 슥 내려가는 애니메이션을 보여주기 위한 상태 (실제 unmount 전까지 true)
+  const [closingAddSheet, setClosingAddSheet] = useState(false);
+  const [closingFolderManage, setClosingFolderManage] = useState(false);
+  const [closingCategoryManage, setClosingCategoryManage] = useState(false);
+  const closeAddSheet = useCallback(() => {
+    setClosingAddSheet(true);
+    setTimeout(() => {
+      setShowAddSheet(false);
+      setClosingAddSheet(false);
+      setShowTextBox(false);
+      setShowLinkBox(false);
+      setLoadError("");
+    }, 260);
+  }, []);
+  const closeFolderManage = useCallback(() => {
+    setClosingFolderManage(true);
+    setTimeout(() => {
+      setShowFolderManage(false);
+      setClosingFolderManage(false);
+    }, 260);
+  }, []);
+  const closeCategoryManage = useCallback(() => {
+    setClosingCategoryManage(true);
+    setTimeout(() => {
+      setShowCategoryManage(false);
+      setClosingCategoryManage(false);
+    }, 260);
+  }, []);
   showAddSheetRef.current = showAddSheet;
   confirmDeleteIdRef.current = confirmDeleteId;
   showFolderManageRef.current = showFolderManage;
@@ -1279,8 +1307,12 @@ export default function RecipeKeeper() {
         input, textarea { outline: none; }
         @keyframes sheetBackdropIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes sheetSlideUpIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes sheetBackdropOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes sheetSlideUpOut { from { transform: translateY(0); } to { transform: translateY(100%); } }
         .sheet-backdrop { animation: sheetBackdropIn 0.25s ease-out; }
         .sheet-content { animation: sheetSlideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+        .sheet-backdrop-out { animation: sheetBackdropOut 0.26s ease-in forwards; }
+        .sheet-content-out { animation: sheetSlideUpOut 0.26s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
         @keyframes pageFadeSlideIn { from { opacity: 1; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .page-enter { animation: pageFadeSlideIn 0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
       `}</style>
@@ -2638,12 +2670,12 @@ export default function RecipeKeeper() {
       )}
 
       {/* ---------- ADD SHEET ---------- */}
-      {showAddSheet && (
-        <div className="sheet-backdrop fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
-          <div className="sheet-content w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+      {(showAddSheet || closingAddSheet) && (
+        <div className={`${closingAddSheet ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20`} style={{ backgroundColor: "#00000099" }}>
+          <div className={`${closingAddSheet ? "sheet-content-out" : "sheet-content"} w-full rounded-t-3xl p-5`} style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>레시피 담기</h3>
-              <button onClick={() => { setShowAddSheet(false); setShowTextBox(false); setShowLinkBox(false); setLoadError(""); }}><X size={22} color={C.muted} /></button>
+              <button onClick={closeAddSheet}><X size={22} color={C.muted} /></button>
             </div>
 
             {!showTextBox && !showLinkBox ? (
@@ -2842,9 +2874,9 @@ export default function RecipeKeeper() {
       )}
 
       {/* ---------- FOLDER MANAGE SHEET ---------- */}
-      {showFolderManage && (
-        <div className="sheet-backdrop fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
-          <div className="sheet-content w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+      {(showFolderManage || closingFolderManage) && (
+        <div className={`${closingFolderManage ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20`} style={{ backgroundColor: "#00000099" }}>
+          <div className={`${closingFolderManage ? "sheet-content-out" : "sheet-content"} w-full rounded-t-3xl p-5`} style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>폴더 관리</h3>
               <div className="flex items-center gap-3">
@@ -2866,7 +2898,7 @@ export default function RecipeKeeper() {
                     <LayoutGrid size={15} />
                   </button>
                 </div>
-                <button onClick={() => setShowFolderManage(false)}><X size={22} color={C.muted} /></button>
+                <button onClick={closeFolderManage}><X size={22} color={C.muted} /></button>
               </div>
             </div>
             {folders.length === 0 ? (
@@ -2912,12 +2944,12 @@ export default function RecipeKeeper() {
       )}
 
       {/* ---------- CATEGORY MANAGE SHEET ---------- */}
-      {showCategoryManage && (
-        <div className="sheet-backdrop fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
-          <div className="sheet-content w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+      {(showCategoryManage || closingCategoryManage) && (
+        <div className={`${closingCategoryManage ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20`} style={{ backgroundColor: "#00000099" }}>
+          <div className={`${closingCategoryManage ? "sheet-content-out" : "sheet-content"} w-full rounded-t-3xl p-5`} style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>카테고리 관리</h3>
-              <button onClick={() => setShowCategoryManage(false)}><X size={22} color={C.muted} /></button>
+              <button onClick={closeCategoryManage}><X size={22} color={C.muted} /></button>
             </div>
             {categories.length === 0 ? (
               <p style={{ color: C.muted, fontSize: 15 }}>아직 만든 카테고리가 없어요.</p>
@@ -3062,10 +3094,11 @@ export default function RecipeKeeper() {
       {/* ---------- 뒤로가기 한번 더 누르면 종료 안내 ---------- */}
       {showExitToast && (
         <div
-          className="fixed left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl z-40 text-sm font-bold"
+          className="fixed left-1/2 -translate-x-1/2 flex items-center gap-3 pl-3 pr-5 py-3 rounded-2xl z-40"
           style={{ bottom: 100, backgroundColor: C.ember, color: "#FFFFFF", boxShadow: "0 4px 16px #00000055" }}
         >
-          뒤로 버튼을 한번 더 누르면 종료돼요
+          <img src={COOKMARK_LOGO} alt="쿡마크 로고" style={{ width: 28, height: 28, borderRadius: 8 }} />
+          <span className="text-sm font-bold">'뒤로' 버튼을 한 번 더 누르시면 종료돼요</span>
         </div>
       )}
     </div>
