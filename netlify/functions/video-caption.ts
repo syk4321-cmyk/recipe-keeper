@@ -301,13 +301,15 @@ async function fetchInstagramViaApify(
 
   try {
     const apiUrl = `https://api.apify.com/v2/acts/apidojo~instagram-scraper/run-sync-get-dataset-items?token=${apifyToken}`;
+    // 공유 링크에 붙는 추적 파라미터(?igsh=...)가 있으면 Actor가 URL을
+    // 못 알아보고 "noResults"를 반환하는 경우가 있어 제거하고 보낸다.
+    const cleanUrl = rawUrl.split("?")[0];
     const res = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        directUrls: [rawUrl],
-        resultsType: "details",
-        resultsLimit: 1,
+        startUrls: [cleanUrl],
+        maxItems: 1,
       }),
       signal: controller.signal,
     });
