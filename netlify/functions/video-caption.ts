@@ -300,16 +300,15 @@ async function fetchInstagramViaApify(
   const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const apiUrl = `https://api.apify.com/v2/acts/apidojo~instagram-scraper/run-sync-get-dataset-items?token=${apifyToken}`;
+    const apiUrl = `https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items?token=${apifyToken}`;
     // 공유 링크에 붙는 추적 파라미터(?igsh=...)가 있으면 Actor가 URL을
-    // 못 알아보고 "noResults"를 반환하는 경우가 있어 제거하고 보낸다.
+    // 못 알아보고 결과 없이 끝나는 경우가 있어 제거하고 보낸다.
     const cleanUrl = rawUrl.split("?")[0];
     const res = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        startUrls: [cleanUrl],
-        maxItems: 1,
+        username: [cleanUrl],
       }),
       signal: controller.signal,
     });
