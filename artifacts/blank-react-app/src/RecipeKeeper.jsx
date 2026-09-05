@@ -648,10 +648,19 @@ export default function RecipeKeeper() {
     lines.push(`(${s}인분 기준)`);
     lines.push("");
     lines.push("[재료]");
-    (recipe.ingredients || []).forEach((ing) => {
+    (recipe.ingredients || []).filter((ing) => !ing.isSauce).forEach((ing) => {
       const amt = scaleAmount(ing.amount, scale);
       lines.push(`- ${ing.name}${amt ? ` ${amt}` : ""}`);
     });
+    const sauceIngredients = (recipe.ingredients || []).filter((ing) => ing.isSauce);
+    if (sauceIngredients.length) {
+      lines.push("");
+      lines.push("[양념]");
+      sauceIngredients.forEach((ing) => {
+        const amt = scaleAmount(ing.amount, scale);
+        lines.push(`- ${ing.name}${amt ? ` ${amt}` : ""}`);
+      });
+    }
     if (recipe.steps && recipe.steps.length) {
       lines.push("");
       lines.push("[조리 순서]");
