@@ -1277,6 +1277,10 @@ export default function RecipeKeeper() {
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
         input, textarea { outline: none; }
+        @keyframes sheetBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes sheetSlideUpIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .sheet-backdrop { animation: sheetBackdropIn 0.25s ease-out; }
+        .sheet-content { animation: sheetSlideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
       `}</style>
 
       {/* ---------- HOME ---------- */}
@@ -2633,8 +2637,8 @@ export default function RecipeKeeper() {
 
       {/* ---------- ADD SHEET ---------- */}
       {showAddSheet && (
-        <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
-          <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+        <div className="sheet-backdrop fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
+          <div className="sheet-content w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>레시피 담기</h3>
               <button onClick={() => { setShowAddSheet(false); setShowTextBox(false); setShowLinkBox(false); setLoadError(""); }}><X size={22} color={C.muted} /></button>
@@ -2837,8 +2841,8 @@ export default function RecipeKeeper() {
 
       {/* ---------- FOLDER MANAGE SHEET ---------- */}
       {showFolderManage && (
-        <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
-          <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+        <div className="sheet-backdrop fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
+          <div className="sheet-content w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>폴더 관리</h3>
               <div className="flex items-center gap-3">
@@ -2907,8 +2911,8 @@ export default function RecipeKeeper() {
 
       {/* ---------- CATEGORY MANAGE SHEET ---------- */}
       {showCategoryManage && (
-        <div className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
-          <div className="w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
+        <div className="sheet-backdrop fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20" style={{ backgroundColor: "#00000099" }}>
+          <div className="sheet-content w-full rounded-t-3xl p-5" style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}>
             <div className="flex items-center justify-between mb-4">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 22 }}>카테고리 관리</h3>
               <button onClick={() => setShowCategoryManage(false)}><X size={22} color={C.muted} /></button>
