@@ -3,7 +3,7 @@ import {
   Camera, Plus, X, ChevronLeft, Check, ShoppingCart,
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
-  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2,
+  Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -836,8 +836,8 @@ export default function RecipeKeeper() {
   function updateIngredient(id, patch) {
     setDraft((d) => ({ ...d, ingredients: d.ingredients.map((i) => (i.id === id ? { ...i, ...patch } : i)) }));
   }
-  function addIngredientRow() {
-    setDraft((d) => ({ ...d, ingredients: [...d.ingredients, { id: uid(), name: "", amount: "", isSauce: false }] }));
+  function addIngredientRow(isSauce = false) {
+    setDraft((d) => ({ ...d, ingredients: [...d.ingredients, { id: uid(), name: "", amount: "", isSauce }] }));
   }
   function removeIngredientRow(id) {
     setDraft((d) => ({ ...d, ingredients: d.ingredients.filter((i) => i.id !== id) }));
@@ -858,15 +858,27 @@ export default function RecipeKeeper() {
   }, []);
   const stepDrag = useReorderList(reorderSteps);
 
-  const reorderIngredients = useCallback((from, target) => {
+  const reorderMainIngredients = useCallback((from, target) => {
     setDraft((d) => {
-      const ingredients = [...d.ingredients];
-      const [moved] = ingredients.splice(from, 1);
-      ingredients.splice(target, 0, moved);
-      return { ...d, ingredients };
+      const main = d.ingredients.filter((i) => !i.isSauce);
+      const sauce = d.ingredients.filter((i) => i.isSauce);
+      const [moved] = main.splice(from, 1);
+      main.splice(target, 0, moved);
+      return { ...d, ingredients: [...main, ...sauce] };
     });
   }, []);
-  const ingredientDrag = useReorderList(reorderIngredients);
+  const mainIngredientDrag = useReorderList(reorderMainIngredients);
+
+  const reorderSauceIngredients = useCallback((from, target) => {
+    setDraft((d) => {
+      const main = d.ingredients.filter((i) => !i.isSauce);
+      const sauce = d.ingredients.filter((i) => i.isSauce);
+      const [moved] = sauce.splice(from, 1);
+      sauce.splice(target, 0, moved);
+      return { ...d, ingredients: [...main, ...sauce] };
+    });
+  }, []);
+  const sauceIngredientDrag = useReorderList(reorderSauceIngredients);
 
   const reorderFoldersCb = useCallback((from, to) => {
     setFolders((prev) => {
@@ -1515,30 +1527,30 @@ export default function RecipeKeeper() {
             <div>
               <div className="flex items-center justify-between">
                 <label style={{ color: C.muted, fontSize: 14 }}>재료</label>
-                <button onClick={addIngredientRow} style={{ color: C.turmeric, fontSize: 15 }} className="flex items-center gap-1">
+                <button onClick={() => addIngredientRow(false)} style={{ color: C.turmeric, fontSize: 15 }} className="flex items-center gap-1">
                   <Plus size={14} /> 재료 추가
                 </button>
               </div>
               <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
               <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
-                {draft.ingredients.map((ing, idx) => (
+                {draft.ingredients.filter((ing) => !ing.isSauce).map((ing, idx) => (
                   <div
                     key={ing.id}
-                    ref={(el) => (ingredientDrag.itemRefs.current[idx] = el)}
+                    ref={(el) => (mainIngredientDrag.itemRefs.current[idx] = el)}
                     className="flex items-center gap-2 py-1.5"
                     style={{
                       borderBottom: `1px dashed ${C.line}`,
-                      backgroundColor: ingredientDrag.dragActiveIndex === idx ? C.raised : "transparent",
-                      transform: ingredientDrag.dragActiveIndex === idx ? `translateY(${ingredientDrag.dragOffsetY}px) scale(1.02)` : "translateY(0)",
-                      transition: ingredientDrag.dragActiveIndex === idx ? "none" : "transform 150ms ease",
-                      zIndex: ingredientDrag.dragActiveIndex === idx ? 10 : 1,
+                      backgroundColor: mainIngredientDrag.dragActiveIndex === idx ? C.raised : "transparent",
+                      transform: mainIngredientDrag.dragActiveIndex === idx ? `translateY(${mainIngredientDrag.dragOffsetY}px) scale(1.02)` : "translateY(0)",
+                      transition: mainIngredientDrag.dragActiveIndex === idx ? "none" : "transform 150ms ease",
+                      zIndex: mainIngredientDrag.dragActiveIndex === idx ? 10 : 1,
                       position: "relative",
-                      boxShadow: ingredientDrag.dragActiveIndex === idx ? "0 6px 16px #00000066" : "none",
+                      boxShadow: mainIngredientDrag.dragActiveIndex === idx ? "0 6px 16px #00000066" : "none",
                     }}
                   >
                     <button
-                      onPointerDown={(e) => ingredientDrag.handleDragStart(e, idx)}
-                      onTouchStart={(e) => ingredientDrag.handleDragStart(e, idx)}
+                      onPointerDown={(e) => mainIngredientDrag.handleDragStart(e, idx)}
+                      onTouchStart={(e) => mainIngredientDrag.handleDragStart(e, idx)}
                       className="shrink-0 touch-none cursor-grab active:cursor-grabbing"
                       style={{ color: C.muted, padding: "2px" }}
                     >
@@ -1559,14 +1571,75 @@ export default function RecipeKeeper() {
                       style={{ color: C.turmeric, fontFamily: "'IBM Plex Mono', monospace" }}
                     />
                     <button
-                      onClick={() => updateIngredient(ing.id, { isSauce: !ing.isSauce })}
-                      className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold"
-                      style={{
-                        backgroundColor: ing.isSauce ? C.turmeric : C.raised,
-                        color: ing.isSauce ? C.ink : C.muted,
-                      }}
+                      onClick={() => updateIngredient(ing.id, { isSauce: true })}
+                      title="양념으로 이동"
+                      style={{ color: C.muted, padding: "2px" }}
                     >
-                      양념
+                      <ArrowLeftRight size={14} />
+                    </button>
+                    <button onClick={() => removeIngredientRow(ing.id)} style={{ color: C.muted }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <label style={{ color: C.muted, fontSize: 14 }}>양념</label>
+                <button onClick={() => addIngredientRow(true)} style={{ color: C.turmeric, fontSize: 15 }} className="flex items-center gap-1">
+                  <Plus size={14} /> 양념 추가
+                </button>
+              </div>
+              <p style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>≡ 손잡이를 꾹 눌러서 위아래로 끌면 순서를 바꿀 수 있어요</p>
+              <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+                {draft.ingredients.filter((ing) => ing.isSauce).length === 0 && (
+                  <p style={{ color: C.muted, fontSize: 13 }}>양념이 없으면 비워두세요.</p>
+                )}
+                {draft.ingredients.filter((ing) => ing.isSauce).map((ing, idx) => (
+                  <div
+                    key={ing.id}
+                    ref={(el) => (sauceIngredientDrag.itemRefs.current[idx] = el)}
+                    className="flex items-center gap-2 py-1.5"
+                    style={{
+                      borderBottom: `1px dashed ${C.line}`,
+                      backgroundColor: sauceIngredientDrag.dragActiveIndex === idx ? C.raised : "transparent",
+                      transform: sauceIngredientDrag.dragActiveIndex === idx ? `translateY(${sauceIngredientDrag.dragOffsetY}px) scale(1.02)` : "translateY(0)",
+                      transition: sauceIngredientDrag.dragActiveIndex === idx ? "none" : "transform 150ms ease",
+                      zIndex: sauceIngredientDrag.dragActiveIndex === idx ? 10 : 1,
+                      position: "relative",
+                      boxShadow: sauceIngredientDrag.dragActiveIndex === idx ? "0 6px 16px #00000066" : "none",
+                    }}
+                  >
+                    <button
+                      onPointerDown={(e) => sauceIngredientDrag.handleDragStart(e, idx)}
+                      onTouchStart={(e) => sauceIngredientDrag.handleDragStart(e, idx)}
+                      className="shrink-0 touch-none cursor-grab active:cursor-grabbing"
+                      style={{ color: C.muted, padding: "2px" }}
+                    >
+                      <GripVertical size={16} />
+                    </button>
+                    <input
+                      value={ing.name}
+                      onChange={(e) => updateIngredient(ing.id, { name: e.target.value })}
+                      placeholder="재료명"
+                      className="flex-1 min-w-0 bg-transparent text-sm"
+                      style={{ color: C.paper }}
+                    />
+                    <input
+                      value={ing.amount}
+                      onChange={(e) => updateIngredient(ing.id, { amount: e.target.value })}
+                      placeholder="양"
+                      className="w-20 shrink-0 bg-transparent text-sm text-right"
+                      style={{ color: C.turmeric, fontFamily: "'IBM Plex Mono', monospace" }}
+                    />
+                    <button
+                      onClick={() => updateIngredient(ing.id, { isSauce: false })}
+                      title="메인 재료로 이동"
+                      style={{ color: C.muted, padding: "2px" }}
+                    >
+                      <ArrowLeftRight size={14} />
                     </button>
                     <button onClick={() => removeIngredientRow(ing.id)} style={{ color: C.muted }}>
                       <Trash2 size={14} />
