@@ -24,6 +24,14 @@ const C = {
 };
 
 const CATEGORIES = ["한식", "중식", "일식", "양식", "디저트", "기타"];
+
+// 뒤로가기 안전장치(가짜 히스토리)를 한번에 여러 개 쌓아서, 안드로이드가
+// "히스토리 맨 끝"으로 오해해 앱을 통째로 꺼버리는 경계선에서 항상 멀리 떨어져 있게 해요.
+function pushBackGuard(times = 3) {
+  for (let i = 0; i < times; i++) {
+    window.history.pushState(null, "");
+  }
+}
 const DEFAULT_FOLDERS = ["할래", "해먹음"];
 
 // 재료 수량 문자열을 숫자+단위로 분리 (예: "700g" -> {value:700, unit:"g"})
@@ -430,7 +438,7 @@ export default function RecipeKeeper() {
   useEffect(() => {
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
-      window.history.pushState(null, "");
+      pushBackGuard(6);
       return;
     }
     if (isBackNavRef.current) {
@@ -445,7 +453,7 @@ export default function RecipeKeeper() {
     } else {
       viewHistoryRef.current.push(prevViewRef.current);
     }
-    window.history.pushState(null, "");
+    pushBackGuard();
     prevViewRef.current = view;
   }, [view]);
 
@@ -456,43 +464,43 @@ export default function RecipeKeeper() {
       setDebugBackLog(msg);
       // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
       if (showAddSheetRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setShowAddSheet(false);
         return;
       }
       if (confirmDeleteIdRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setConfirmDeleteId(null);
         return;
       }
       if (showFolderManageRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setShowFolderManage(false);
         return;
       }
       if (confirmDeleteFolderRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setConfirmDeleteFolder(null);
         return;
       }
       if (showMoveFolderRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setShowMoveFolder(false);
         return;
       }
       if (showCategoryManageRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setShowCategoryManage(false);
         return;
       }
       if (confirmDeleteCategoryRef.current) {
-        window.history.pushState(null, "");
+        pushBackGuard();
         setConfirmDeleteCategory(null);
         return;
       }
       if (viewRef.current === "preview" && !pendingLeaveConfirmedRef.current) {
         // 레시피 작성/수정 화면에서는 뒤로가기를 바로 허용하지 않고 확인부터 받아요.
-        window.history.pushState(null, "");
+        pushBackGuard();
         setShowLeaveEditConfirm(true);
         return;
       }
@@ -508,7 +516,7 @@ export default function RecipeKeeper() {
       if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
       exitTimerRef.current = setTimeout(() => {
         setShowExitToast(false);
-        window.history.pushState(null, "");
+        pushBackGuard();
         exitTimerRef.current = null;
       }, 2000);
     }
