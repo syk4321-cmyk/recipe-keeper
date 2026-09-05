@@ -414,6 +414,18 @@ export default function RecipeKeeper() {
   const isBackNavRef = useRef(false);
   const isFirstRenderRef = useRef(true);
   const exitTimerRef = useRef(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const pendingLeaveConfirmedRef = useRef(false);
+  const [showLeaveEditConfirm, setShowLeaveEditConfirm] = useState(false);
+  // 뒤로가기를 누를 때 화면 이동보다 먼저 닫아야 하는 팝업/시트들의 최신 상태를 담아두는 ref
+  const showAddSheetRef = useRef(false);
+  const confirmDeleteIdRef = useRef(null);
+  const showFolderManageRef = useRef(false);
+  const confirmDeleteFolderRef = useRef(null);
+  const showMoveFolderRef = useRef(false);
+  const showCategoryManageRef = useRef(false);
+  const confirmDeleteCategoryRef = useRef(null);
 
   useEffect(() => {
     if (isFirstRenderRef.current) {
@@ -426,13 +438,62 @@ export default function RecipeKeeper() {
       prevViewRef.current = view;
       return;
     }
-    viewHistoryRef.current.push(prevViewRef.current);
+    if (view === "home") {
+      // 홈은 항상 기준점(루트)으로 취급해서, 하단 탭 등으로 홈에 돌아왔을 때
+      // 예전 화면 기록이 남아있어 종료 안내가 안 뜨는 문제를 막아요.
+      viewHistoryRef.current = [];
+    } else {
+      viewHistoryRef.current.push(prevViewRef.current);
+    }
     window.history.pushState(null, "");
     prevViewRef.current = view;
   }, [view]);
 
   useEffect(() => {
     function handlePopState() {
+      // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
+      if (showAddSheetRef.current) {
+        window.history.pushState(null, "");
+        setShowAddSheet(false);
+        return;
+      }
+      if (confirmDeleteIdRef.current) {
+        window.history.pushState(null, "");
+        setConfirmDeleteId(null);
+        return;
+      }
+      if (showFolderManageRef.current) {
+        window.history.pushState(null, "");
+        setShowFolderManage(false);
+        return;
+      }
+      if (confirmDeleteFolderRef.current) {
+        window.history.pushState(null, "");
+        setConfirmDeleteFolder(null);
+        return;
+      }
+      if (showMoveFolderRef.current) {
+        window.history.pushState(null, "");
+        setShowMoveFolder(false);
+        return;
+      }
+      if (showCategoryManageRef.current) {
+        window.history.pushState(null, "");
+        setShowCategoryManage(false);
+        return;
+      }
+      if (confirmDeleteCategoryRef.current) {
+        window.history.pushState(null, "");
+        setConfirmDeleteCategory(null);
+        return;
+      }
+      if (viewRef.current === "preview" && !pendingLeaveConfirmedRef.current) {
+        // 레시피 작성/수정 화면에서는 뒤로가기를 바로 허용하지 않고 확인부터 받아요.
+        window.history.pushState(null, "");
+        setShowLeaveEditConfirm(true);
+        return;
+      }
+      pendingLeaveConfirmedRef.current = false;
       if (viewHistoryRef.current.length > 0) {
         const prev = viewHistoryRef.current.pop();
         isBackNavRef.current = true;
@@ -476,6 +537,13 @@ export default function RecipeKeeper() {
   const [showMoveFolder, setShowMoveFolder] = useState(false);
   const [showCategoryManage, setShowCategoryManage] = useState(false);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(null);
+  showAddSheetRef.current = showAddSheet;
+  confirmDeleteIdRef.current = confirmDeleteId;
+  showFolderManageRef.current = showFolderManage;
+  confirmDeleteFolderRef.current = confirmDeleteFolder;
+  showMoveFolderRef.current = showMoveFolder;
+  showCategoryManageRef.current = showCategoryManage;
+  confirmDeleteCategoryRef.current = confirmDeleteCategory;
   // 등록/수정 화면에서 카테고리·폴더를 바로 추가할 때 쓰는 입력창 상태
   const [editCategoryAddOpen, setEditCategoryAddOpen] = useState(false);
   const [editNewCategoryName, setEditNewCategoryName] = useState("");
@@ -505,6 +573,20 @@ export default function RecipeKeeper() {
       wakeLockRef.current.release().catch(() => {});
       wakeLockRef.current = null;
     }
+  }
+
+  function requestLeaveEdit() {
+    setShowLeaveEditConfirm(true);
+  }
+  function cancelLeaveEdit() {
+    setShowLeaveEditConfirm(false);
+  }
+  function confirmLeaveEdit() {
+    setShowLeaveEditConfirm(false);
+    setDraft(null);
+    setIsEditingExisting(false);
+    pendingLeaveConfirmedRef.current = true;
+    window.history.back();
   }
 
   function startCooking() {
@@ -1398,14 +1480,7 @@ export default function RecipeKeeper() {
       {view === "preview" && draft && (
         <div className="flex flex-col flex-1 pb-24">
           <div className="flex items-center gap-3 px-4 py-4">
-            <button
-              onClick={() => {
-                const backTo = isEditingExisting ? "detail" : "home";
-                setDraft(null);
-                setIsEditingExisting(false);
-                setView(backTo);
-              }}
-            >
+            <button onClick={requestLeaveEdit}>
               <X size={22} color={C.paper} />
             </button>
             <span className="font-bold" style={{ color: C.paper }}>
@@ -2926,6 +3001,36 @@ export default function RecipeKeeper() {
                 style={{ backgroundColor: C.ember, color: C.ink }}
               >
                 삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- 레시피 작성/수정 나가기 확인 ---------- */}
+      {showLeaveEditConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center max-w-md mx-auto z-40 px-6" style={{ backgroundColor: "#000000cc" }}>
+          <div className="w-full rounded-2xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
+              수정이 완료되지 않았어요
+            </h3>
+            <p style={{ color: C.muted, fontSize: 15, marginTop: 6 }}>
+              지금 나가면 작성 중인 내용이 저장되지 않아요.
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={cancelLeaveEdit}
+                className="flex-1 py-3 rounded-xl font-bold"
+                style={{ backgroundColor: C.ember, color: C.ink }}
+              >
+                이어서 수정하기
+              </button>
+              <button
+                onClick={confirmLeaveEdit}
+                className="flex-1 py-3 rounded-xl font-bold"
+                style={{ backgroundColor: C.raised, color: C.muted }}
+              >
+                그냥 나가기
               </button>
             </div>
           </div>
