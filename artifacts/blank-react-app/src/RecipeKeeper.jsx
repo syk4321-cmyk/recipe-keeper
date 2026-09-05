@@ -403,6 +403,55 @@ export default function RecipeKeeper() {
   }, []);
 
   const [view, setView] = useState("home");
+
+  // ---- 안드로이드/브라우저 뒤로가기 버튼 연동 ----
+  // 화면을 이동할 때마다 브라우저 히스토리에 기록을 남겨서, 뒤로가기를 누르면
+  // 앱이 꺼지는 대신 이전 화면으로 돌아가도록 만들어요.
+  // 더 돌아갈 화면이 없을 때(홈 화면)만 "한번 더 누르면 종료" 안내를 띄워요.
+  const [showExitToast, setShowExitToast] = useState(false);
+  const viewHistoryRef = useRef([]);
+  const prevViewRef = useRef(view);
+  const isBackNavRef = useRef(false);
+  const isFirstRenderRef = useRef(true);
+  const exitTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      window.history.pushState(null, "");
+      return;
+    }
+    if (isBackNavRef.current) {
+      isBackNavRef.current = false;
+      prevViewRef.current = view;
+      return;
+    }
+    viewHistoryRef.current.push(prevViewRef.current);
+    window.history.pushState(null, "");
+    prevViewRef.current = view;
+  }, [view]);
+
+  useEffect(() => {
+    function handlePopState() {
+      if (viewHistoryRef.current.length > 0) {
+        const prev = viewHistoryRef.current.pop();
+        isBackNavRef.current = true;
+        setView(prev);
+        return;
+      }
+      // 더 이상 돌아갈 화면이 없음 = 홈 화면. 두 번째 뒤로가기까지는 종료를 막고 안내만 보여줘요.
+      setShowExitToast(true);
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = setTimeout(() => {
+        setShowExitToast(false);
+        window.history.pushState(null, "");
+        exitTimerRef.current = null;
+      }, 2000);
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const [recipes, setRecipes] = useState([]);
   const [folders, setFolders] = useState(DEFAULT_FOLDERS);
   const [activeFolder, setActiveFolder] = useState("전체");
@@ -484,6 +533,14 @@ export default function RecipeKeeper() {
       releaseWakeLock();
     };
   }, []);
+
+  useEffect(() => {
+    if (view !== "cooking") {
+      clearInterval(timerIntervalRef.current);
+      setTimerRunning(false);
+      releaseWakeLock();
+    }
+  }, [view]);
 
   useEffect(() => {
     if (view !== "cooking" || !selectedRecipe) return;
@@ -2880,6 +2937,16 @@ export default function RecipeKeeper() {
         <div className="fixed inset-0 flex flex-col items-center justify-center max-w-md mx-auto z-30" style={{ backgroundColor: "#000000cc" }}>
           <Loader2 size={32} className="animate-spin" color={C.turmeric} />
           <p className="mt-3 text-sm" style={{ color: C.ink }}>{loadingMsg}</p>
+        </div>
+      )}
+
+      {/* ---------- 뒤로가기 한번 더 누르면 종료 안내 ---------- */}
+      {showExitToast && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl z-40 text-sm font-bold"
+          style={{ bottom: 100, backgroundColor: C.ember, color: "#FFFFFF", boxShadow: "0 4px 16px #00000055" }}
+        >
+          뒤로 버튼을 한번 더 누르면 종료돼요
         </div>
       )}
     </div>
