@@ -278,6 +278,69 @@ async function fetchYoutubeTopComment(videoId: string): Promise<{ text: string }
   return { text: candidate.slice(0, MAX_TRANSCRIPT_CHARS) };
 }
 
+// 플랜 B: OG 메타태그 파싱(플랜 A)이 실패하면(인스타그램이 서버 IP를 로그인
+// 요구 화면으로 돌리는 경우가 흔함) Apify의 Instagram Scraper로 재시도한다.
+// run-sync-get-dataset-items 엔드포인트는 스크레이핑이 끝날 때까지 기다렸다가
+// 결과를 바로 반환해준다. Netlify 함수 자체 실행시간 제한이 있어서, 너무 오래
+// 걸리면 AbortController로 중단하고 실패 처리한다(그다음은 "직접 붙여넣기" 안내).
+async function fetchInstagramViaApify(
+  rawUrl: string,
+): Promise<{ title: string; text: string } | null> {
+  const apifyToken = process.env.APIFY_TOKEN;
+  if (!apifyToken) {
+    console.log("[video-caption] apify: APIFY_TOKEN 없음, 건너뜀");
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const apiUrl = `https://api.apify.com/v2/acts/apidojo~instagram-scraper/run-sync-get-dataset-items?token=${apifyToken}`;
+    const res = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startUrls: [rawUrl], maxItems: 1 }),
+      signal: controller.signal,
+    });
+    console.log("[video-caption] apify: 응답 상태", { status: res.status, ok: res.ok });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.log("[video-caption] apify: 실패 응답 본문", { body: errText.slice(0, 300) });
+      return null;
+    }
+
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return null;
+    }
+
+    const item = Array.isArray(data) ? data[0] : null;
+    // Actor마다 캡션 필드명이 조금씩 다를 수 있어 방어적으로 여러 후보를 확인.
+    const caption: string =
+      item?.caption ??
+      item?.text ??
+      item?.edge_media_to_caption?.edges?.[0]?.node?.text ??
+      "";
+    console.log("[video-caption] apify: 캡션 길이", {
+      itemsCount: Array.isArray(data) ? data.length : 0,
+      captionLength: caption.length,
+    });
+
+    if (!caption || caption.trim().length < 10) return null;
+    return { title: "", text: caption.slice(0, MAX_TRANSCRIPT_CHARS) };
+  } catch (error) {
+    console.log("[video-caption] apify: 예외 발생", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchOgDescription(
   rawUrl: string,
 ): Promise<{ title: string; text: string } | null> {
@@ -396,15 +459,22 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     const result = await fetchOgDescription(rawUrl);
-    if (!result || !result.text) {
-      return jsonResponse(
-        {
-          error: "이 게시물에서 설명글을 가져오지 못했어요. 캡션 텍스트를 직접 붙여넣어주세요.",
-        },
-        422,
-      );
+    if (result && result.text) {
+      return jsonResponse({ source: "og_description", title: result.title, text: result.text });
     }
-    return jsonResponse({ source: "og_description", title: result.title, text: result.text });
+
+    // 플랜 A(무료 파싱) 실패 시 플랜 B(Apify 스크레이퍼)로 재시도
+    const viaApify = await fetchInstagramViaApify(rawUrl).catch(() => null);
+    if (viaApify && viaApify.text) {
+      return jsonResponse({ source: "apify_caption", title: viaApify.title, text: viaApify.text });
+    }
+
+    return jsonResponse(
+      {
+        error: "이 게시물에서 설명글을 가져오지 못했어요. 캡션 텍스트를 직접 붙여넣어주세요.",
+      },
+      422,
+    );
   } catch (error) {
     console.error("video-caption fetch failed", {
       message: error instanceof Error ? error.message : "unknown error",
