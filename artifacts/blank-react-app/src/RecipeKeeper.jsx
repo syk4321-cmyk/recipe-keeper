@@ -558,6 +558,7 @@ export default function RecipeKeeper() {
   const [closingAddSheet, setClosingAddSheet] = useState(false);
   const [closingFolderManage, setClosingFolderManage] = useState(false);
   const [closingCategoryManage, setClosingCategoryManage] = useState(false);
+  const [showShareFeatureInfo, setShowShareFeatureInfo] = useState(false);
   const closeAddSheet = useCallback(() => {
     setClosingAddSheet(true);
     setTimeout(() => {
@@ -1335,6 +1336,11 @@ export default function RecipeKeeper() {
         .sheet-content-out { animation: sheetSlideUpOut 0.26s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
         @keyframes pageFadeSlideIn { from { opacity: 1; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .page-enter { animation: pageFadeSlideIn 0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
+        @keyframes newFeatureGlow {
+          0%, 100% { box-shadow: 0 0 0 0 ${C.ember}66; }
+          50% { box-shadow: 0 0 0 5px ${C.ember}00; }
+        }
+        .new-feature-glow { animation: newFeatureGlow 1.8s ease-out infinite; }
       `}</style>
 
       {/* ---------- HOME ---------- */}
@@ -2694,6 +2700,14 @@ export default function RecipeKeeper() {
               <button onClick={closeAddSheet}><X size={22} color={C.muted} /></button>
             </div>
 
+            <button
+              onClick={() => setShowShareFeatureInfo(true)}
+              className="new-feature-glow flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-3 text-xs font-bold"
+              style={{ backgroundColor: C.emberSoft, color: C.ember }}
+            >
+              💡 새로운 기능
+            </button>
+
             {!showTextBox && !showLinkBox ? (
               <div className="flex flex-col gap-3">
                 <button
@@ -2885,6 +2899,56 @@ export default function RecipeKeeper() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- 새로운 기능 안내(공유로 바로 담기) ---------- */}
+      {showShareFeatureInfo && (
+        <div
+          className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-30"
+          style={{ backgroundColor: "#00000099" }}
+          onClick={() => setShowShareFeatureInfo(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl p-5"
+            style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20 }}>💡 공유로 바로 담기</h3>
+              <button onClick={() => setShowShareFeatureInfo(false)}><X size={22} color={C.muted} /></button>
+            </div>
+            <p className="text-sm mb-4" style={{ color: C.paper, lineHeight: 1.5 }}>
+              유튜브·인스타에서 영상 보다가 공유 버튼을 누르면, 목록에 쿡마크가 떠요.
+              쿡마크를 누르면 링크를 복사하지 않아도 바로 레시피 담기 화면으로 넘어가요!
+            </p>
+
+            <div className="rounded-2xl p-4 mb-3" style={{ backgroundColor: "#2A2A2A" }}>
+              <div className="mb-3" style={{ fontSize: 11, color: "#AAAAAA" }}>공유</div>
+              <div className="flex items-center justify-between px-1">
+                {["카카오톡", "메시지", "Gmail"].map((label) => (
+                  <div key={label} className="flex flex-col items-center gap-1.5" style={{ width: 56 }}>
+                    <div className="w-11 h-11 rounded-full" style={{ backgroundColor: "#555555" }} />
+                    <span style={{ fontSize: 10, color: "#CCCCCC" }}>{label}</span>
+                  </div>
+                ))}
+                <div className="flex flex-col items-center gap-1.5" style={{ width: 56 }}>
+                  <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center overflow-hidden"
+                    style={{ border: `2px solid ${C.ember}` }}
+                  >
+                    <img src={COOKMARK_LOGO} alt="쿡마크" className="w-full h-full object-cover" />
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.ember }}>쿡마크</span>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+              * 안드로이드에서만 지원돼요. 아이폰에서는 아직 사용할 수 없어요.<br />
+              * 준비되는 대로 알려드릴게요 — 지금은 미리 보기예요.
+            </p>
           </div>
         </div>
       )}
