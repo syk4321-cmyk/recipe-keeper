@@ -793,6 +793,46 @@ export default function RecipeKeeper() {
     })();
   }, [user]);
 
+  // 안드로이드 공유 시트에서 "쿡마크"를 선택해 열렸을 때(Web Share Target),
+  // 주소에 담겨 온 링크/텍스트를 한 번만 읽어서 저장해둬요.
+  const [pendingShare, setPendingShare] = useState(null);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has("url") && !params.has("text") && !params.has("title")) return;
+      const combined = [params.get("url"), params.get("text"), params.get("title")]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      // 새로고침해도 같은 공유가 반복 실행되지 않도록 주소를 바로 정리해요.
+      window.history.replaceState(null, "", window.location.pathname);
+      if (!combined) return;
+      const match = combined.match(/https?:\/\/\S+/);
+      const link = match ? match[0].replace(/[)\].,]+$/, "") : null;
+      setPendingShare({ link, text: combined });
+    } catch (e) {}
+  }, []);
+
+  // 데이터 로딩이 끝나면(로그인 + 기존 레시피 목록 준비 완료) 대기 중이던 공유를 처리해요.
+  useEffect(() => {
+    if (!ready || !pendingShare) return;
+    const share = pendingShare;
+    setPendingShare(null);
+    if (share.link && isBareLink(share.link)) {
+      setShowAddSheet(true);
+      setShowLinkBox(true);
+      setLinkInput(share.link);
+      setLoadError("");
+      setLoading(true);
+      fetchRecipeFromLink(share.link, share.link);
+    } else if (share.text) {
+      // 링크를 못 찾았으면(캡션 텍스트만 공유된 경우 등) 직접입력하기에 미리 채워줘요.
+      setShowAddSheet(true);
+      setShowTextBox(true);
+      setTextInput(share.text);
+    }
+  }, [ready, pendingShare]);
+
   useEffect(() => { if (ready) appStorage.set("recipes", JSON.stringify(recipes), false).catch(() => {}); }, [recipes, ready]);
   useEffect(() => { if (ready) appStorage.set("folders", JSON.stringify(folders), false).catch(() => {}); }, [folders, ready]);
   useEffect(() => { if (ready) appStorage.set("categories", JSON.stringify(categories), false).catch(() => {}); }, [categories, ready]);
