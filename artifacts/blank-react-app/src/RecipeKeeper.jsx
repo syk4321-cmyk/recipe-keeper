@@ -1543,7 +1543,7 @@ export default function RecipeKeeper() {
                     style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
                   >
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+                      className="w-12 h-[60px] rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
                       style={{ backgroundColor: C.raised }}
                     >
                       {r.photos && r.photos[0] ? (
