@@ -1576,7 +1576,7 @@ export default function RecipeKeeper() {
                     style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
                   >
                     <div
-                      className="w-full aspect-video flex items-center justify-center overflow-hidden"
+                      className="w-full aspect-square flex items-center justify-center overflow-hidden"
                       style={{ backgroundColor: C.raised }}
                     >
                       {r.photos && r.photos[0] ? (
