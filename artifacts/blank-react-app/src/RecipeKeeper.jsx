@@ -1343,18 +1343,14 @@ export default function RecipeKeeper() {
           </div>
 
           <div className="px-5 py-2 flex items-center gap-2 min-w-0">
-            <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+            <button
+              onClick={() => setView("search")}
+              className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl text-left"
+              style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
+            >
               <Search size={16} color={C.muted} />
-              <input
-                ref={searchInputRef}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addRecentSearch(search)}
-                placeholder="이름이나 재료로 찾기 (예: 대파)"
-                className="bg-transparent flex-1 min-w-0 text-sm"
-                style={{ color: C.paper }}
-              />
-            </div>
+              <span className="flex-1 min-w-0 text-sm truncate" style={{ color: C.muted }}>이름이나 재료로 찾기 (예: 대파)</span>
+            </button>
             <div className="flex items-center gap-0.5 shrink-0 rounded-full p-0.5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
               <button
                 onClick={() => setCardLayout("list")}
