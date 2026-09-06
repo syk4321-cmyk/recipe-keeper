@@ -882,8 +882,8 @@ export default function RecipeKeeper() {
     } catch (e) {}
   }
 
-  function openPreview(parsed, source, sourceNote) {
-    setDraft({ ...parsed, note: "", servings: 2, photos: [], id: uid(), source, sourceNote, folder: folders[0] || "할래", createdAt: Date.now() });
+  function openPreview(parsed, source, sourceNote, extra = {}) {
+    setDraft({ ...parsed, note: extra.note || "", servings: 2, photos: extra.photos || [], id: uid(), source, sourceNote, folder: folders[0] || "할래", createdAt: Date.now() });
     setIsEditingExisting(false);
     setShowAddSheet(false);
     setShowTextBox(false);
@@ -913,6 +913,13 @@ export default function RecipeKeeper() {
     return /^https?:\/\/\S+$/i.test(t) && !t.includes(" ") && !t.includes("\n");
   }
 
+  // 유튜브 링크에서 영상 ID를 뽑아 공식 썸네일 이미지 주소를 만들어요.
+  // (유튜브는 썸네일을 별도 API 없이 이 규칙만으로 바로 볼 수 있어요.)
+  function getYoutubeThumbnail(url) {
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{6,})/);
+    return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
+  }
+
   // 유튜브/인스타 링크 하나를 받아 자막·캡션을 가져오고 AI로 레시피를 정리한다.
   // "직접입력하기"(자유 텍스트 안에 링크만 붙여넣은 경우)와
   // "유튜브·인스타 링크"(링크 전용 입력창) 두 곳에서 공용으로 사용.
@@ -936,7 +943,11 @@ export default function RecipeKeeper() {
       setLoadingMsg("가져온 내용을 레시피로 정리하는 중...");
       const combined = `${data.title ? `제목: ${data.title}\n\n` : ""}${data.text}`;
       const parsed = await callClaude([{ type: "text", text: TEXT_PROMPT(combined) }]);
-      openPreview(parsed, "manual", (data.title || fallbackLabel).slice(0, 200));
+      const thumbnail = data.thumbnail || getYoutubeThumbnail(rawUrl);
+      openPreview(parsed, "manual", (data.title || fallbackLabel).slice(0, 200), {
+        note: `원본 링크: ${rawUrl.trim()}`,
+        photos: thumbnail ? [thumbnail] : [],
+      });
     } catch (e) {
       setLoadError(
         "영상 정보를 가져오는 중 문제가 생겼어요. 영상 아래 설명이나 댓글에 적힌 재료·순서 텍스트를 직접입력하기에 붙여넣어주세요."
