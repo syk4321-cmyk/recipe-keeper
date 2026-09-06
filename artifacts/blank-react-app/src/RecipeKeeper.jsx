@@ -3094,10 +3094,10 @@ export default function RecipeKeeper() {
       {/* ---------- 뒤로가기 한번 더 누르면 종료 안내 ---------- */}
       {showExitToast && (
         <div
-          className="fixed left-1/2 -translate-x-1/2 flex items-center gap-4 pl-5 pr-8 py-3.5 rounded-full z-40"
+          className="fixed left-1/2 -translate-x-1/2 flex items-center gap-4 pl-5 pr-7 py-3.5 rounded-2xl z-40"
           style={{ bottom: 100, backgroundColor: C.ember, color: "#FFFFFF", boxShadow: "0 4px 16px #00000055" }}
         >
-          <img src={COOKMARK_LOGO} alt="쿡마크 로고" style={{ width: 28, height: 28, borderRadius: 8 }} />
+          <img src={COOKMARK_LOGO} alt="쿡마크 로고" className="shrink-0" style={{ width: 28, height: 28, borderRadius: 8 }} />
           <div className="flex flex-col text-sm font-bold leading-snug">
             <span style={{ whiteSpace: "nowrap" }}>'뒤로' 버튼을 한번 더 누르면</span>
             <span style={{ whiteSpace: "nowrap" }}>종료됩니다.</span>
