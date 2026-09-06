@@ -1539,24 +1539,24 @@ export default function RecipeKeeper() {
                   <button
                     key={r.id}
                     onClick={() => openDetail(r.id)}
-                    className="flex items-center gap-3 p-3 rounded-2xl text-left"
+                    className="flex items-center gap-4 p-4 rounded-3xl text-left"
                     style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
                   >
                     <div
-                      className="w-12 h-[60px] rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+                      className="w-20 h-[100px] rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
                       style={{ backgroundColor: C.raised }}
                     >
                       {r.photos && r.photos[0] ? (
                         <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
                       ) : (
-                        <ChefHat size={20} color={C.muted} />
+                        <ChefHat size={28} color={C.muted} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate" style={{ color: C.paper }}>{r.title}</div>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="font-bold text-base truncate" style={{ color: C.paper }}>{r.title}</div>
+                      <div className="flex items-center gap-2 mt-2">
                         <span
-                          className="text-xs px-2 py-0.5 rounded-full"
+                          className="text-sm px-2.5 py-1 rounded-full"
                           style={{ backgroundColor: C.emberSoft, color: C.ember, fontWeight: 700 }}
                         >
                           {r.folder}
