@@ -457,6 +457,15 @@ export default function RecipeKeeper() {
     prevViewRef.current = view;
   }, [view]);
 
+  // 검색 화면을 나갈 때(뒤로가기, 하단 탭 등 방법 상관없이) 입력했던 검색어를 초기화해요.
+  const lastViewForSearchResetRef = useRef(view);
+  useEffect(() => {
+    if (lastViewForSearchResetRef.current === "search" && view !== "search") {
+      setSearch("");
+    }
+    lastViewForSearchResetRef.current = view;
+  }, [view]);
+
   useEffect(() => {
     function handlePopState() {
       // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
