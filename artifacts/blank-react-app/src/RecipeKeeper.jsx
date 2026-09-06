@@ -473,7 +473,7 @@ export default function RecipeKeeper() {
       // (레시피 담기 시트 위에 떠있는 새로운기능 안내 배너가 있으면 그것부터 먼저 닫아요.)
       if (showShareFeatureInfoRef.current) {
         pushBackGuard();
-        setShowShareFeatureInfo(false);
+        closeShareFeatureInfo();
         return;
       }
       if (showAddSheetRef.current) {
@@ -566,6 +566,14 @@ export default function RecipeKeeper() {
   const [closingFolderManage, setClosingFolderManage] = useState(false);
   const [closingCategoryManage, setClosingCategoryManage] = useState(false);
   const [showShareFeatureInfo, setShowShareFeatureInfo] = useState(false);
+  const [closingShareFeatureInfo, setClosingShareFeatureInfo] = useState(false);
+  const closeShareFeatureInfo = useCallback(() => {
+    setClosingShareFeatureInfo(true);
+    setTimeout(() => {
+      setShowShareFeatureInfo(false);
+      setClosingShareFeatureInfo(false);
+    }, 260);
+  }, []);
   const closeAddSheet = useCallback(() => {
     setClosingAddSheet(true);
     setTimeout(() => {
@@ -2912,20 +2920,20 @@ export default function RecipeKeeper() {
       )}
 
       {/* ---------- 새로운 기능 안내(공유로 바로 담기) ---------- */}
-      {showShareFeatureInfo && (
+      {(showShareFeatureInfo || closingShareFeatureInfo) && (
         <div
-          className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-30"
+          className={`${closingShareFeatureInfo ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 flex items-end justify-center max-w-md mx-auto z-30`}
           style={{ backgroundColor: "#00000099" }}
-          onClick={() => setShowShareFeatureInfo(false)}
+          onClick={closeShareFeatureInfo}
         >
           <div
-            className="w-full rounded-t-3xl p-5"
+            className={`${closingShareFeatureInfo ? "sheet-content-out" : "sheet-content"} w-full rounded-t-3xl p-5`}
             style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
               <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20 }}>💡 공유로 바로 담기</h3>
-              <button onClick={() => setShowShareFeatureInfo(false)}><X size={22} color={C.muted} /></button>
+              <button onClick={closeShareFeatureInfo}><X size={22} color={C.muted} /></button>
             </div>
             <p className="text-sm mb-4" style={{ color: C.paper, lineHeight: 1.5 }}>
               유튜브·인스타에서 영상 보다가 공유 버튼을 누르면, 목록에 쿡마크가 떠요.
