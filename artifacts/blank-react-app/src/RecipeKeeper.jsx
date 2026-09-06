@@ -1576,11 +1576,11 @@ export default function RecipeKeeper() {
                     style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
                   >
                     <div
-                      className="w-full flex items-center justify-center overflow-hidden"
-                      style={{ height: 92, backgroundColor: C.raised }}
+                      className="w-full aspect-video flex items-center justify-center overflow-hidden"
+                      style={{ backgroundColor: C.raised }}
                     >
                       {r.photos && r.photos[0] ? (
-                        <img src={r.photos[0]} alt={r.title} className="w-full h-full object-cover" />
+                        <img src={r.photos[0]} alt={r.title} className="w-full h-full object-contain" />
                       ) : (
                         <ChefHat size={26} color={C.muted} />
                       )}
