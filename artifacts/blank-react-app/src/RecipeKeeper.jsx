@@ -974,7 +974,7 @@ export default function RecipeKeeper() {
   // (유튜브는 썸네일을 별도 API 없이 이 규칙만으로 바로 볼 수 있어요.)
   function getYoutubeThumbnail(url) {
     const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{6,})/);
-    return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
+    return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null;
   }
 
   // 유튜브/인스타 링크 하나를 받아 자막·캡션을 가져오고 AI로 레시피를 정리한다.
