@@ -289,7 +289,7 @@ async function fetchYoutubeTopComment(videoId: string): Promise<{ text: string }
 // 걸리면 AbortController로 중단하고 실패 처리한다(그다음은 "직접 붙여넣기" 안내).
 async function fetchInstagramViaApify(
   rawUrl: string,
-): Promise<{ title: string; text: string } | null> {
+): Promise<{ title: string; text: string; thumbnail?: string } | null> {
   const apifyToken = process.env.APIFY_TOKEN;
   if (!apifyToken) {
     console.log("[video-caption] apify: APIFY_TOKEN 없음, 건너뜀");
@@ -338,23 +338,35 @@ async function fetchInstagramViaApify(
 
     // Actor마다 캡션 필드명이 조금씩 다르고, 결과 배열에 게시물 외 다른
     // 항목(댓글 등)이 섞여 올 수도 있어 모든 항목을 훑어 가장 긴 후보를 채택.
-    const candidates: string[] = items
-      .map(
-        (it) =>
+    // 썸네일도 캡션을 채택한 그 항목에서 같이 뽑아온다(필드명은 Actor마다 다름).
+    const candidateItems = items
+      .map((it) => ({
+        caption:
           it?.caption ??
           it?.text ??
           it?.edge_media_to_caption?.edges?.[0]?.node?.text ??
           "",
-      )
-      .filter((c) => typeof c === "string" && c.trim().length >= 15);
-    const caption = candidates.sort((a, b) => b.length - a.length)[0] ?? "";
+        thumbnail:
+          it?.displayUrl ??
+          it?.thumbnailUrl ??
+          it?.images?.[0] ??
+          it?.videoThumbnail ??
+          null,
+      }))
+      .filter((c) => typeof c.caption === "string" && c.caption.trim().length >= 15);
+    const best = candidateItems.sort((a, b) => b.caption.length - a.caption.length)[0];
     console.log("[video-caption] apify: 캡션 길이", {
-      candidatesCount: candidates.length,
-      captionLength: caption.length,
+      candidatesCount: candidateItems.length,
+      captionLength: best?.caption.length ?? 0,
+      hasThumbnail: !!best?.thumbnail,
     });
 
-    if (!caption) return null;
-    return { title: "", text: caption.slice(0, MAX_TRANSCRIPT_CHARS) };
+    if (!best) return null;
+    return {
+      title: "",
+      text: best.caption.slice(0, MAX_TRANSCRIPT_CHARS),
+      thumbnail: best.thumbnail || undefined,
+    };
   } catch (error) {
     console.log("[video-caption] apify: 예외 발생", {
       message: error instanceof Error ? error.message : "unknown",
@@ -367,7 +379,7 @@ async function fetchInstagramViaApify(
 
 async function fetchOgDescription(
   rawUrl: string,
-): Promise<{ title: string; text: string } | null> {
+): Promise<{ title: string; text: string; thumbnail?: string } | null> {
   const res = await fetch(rawUrl, {
     headers: {
       "User-Agent": BROWSER_UA,
@@ -388,9 +400,10 @@ async function fetchOgDescription(
 
   const title = getMeta("og:title");
   const description = getMeta("og:description");
+  const image = getMeta("og:image");
   if (!description || description.trim().length < 20) return null;
 
-  return { title, text: description };
+  return { title, text: description, thumbnail: image || undefined };
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -484,13 +497,23 @@ export default async function handler(request: Request): Promise<Response> {
 
     const result = await fetchOgDescription(rawUrl);
     if (result && result.text) {
-      return jsonResponse({ source: "og_description", title: result.title, text: result.text });
+      return jsonResponse({
+        source: "og_description",
+        title: result.title,
+        text: result.text,
+        thumbnail: result.thumbnail,
+      });
     }
 
     // 플랜 A(무료 파싱) 실패 시 플랜 B(Apify 스크레이퍼)로 재시도
     const viaApify = await fetchInstagramViaApify(rawUrl).catch(() => null);
     if (viaApify && viaApify.text) {
-      return jsonResponse({ source: "apify_caption", title: viaApify.title, text: viaApify.text });
+      return jsonResponse({
+        source: "apify_caption",
+        title: viaApify.title,
+        text: viaApify.text,
+        thumbnail: viaApify.thumbnail,
+      });
     }
 
     return jsonResponse(
