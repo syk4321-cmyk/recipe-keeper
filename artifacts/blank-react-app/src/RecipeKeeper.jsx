@@ -2580,7 +2580,7 @@ export default function RecipeKeeper() {
               {searchResults.map((r) => (
                 <button
                   key={r.id}
-                  onClick={() => openDetail(r.id)}
+                  onClick={() => { addRecentSearch(search); openDetail(r.id); }}
                   className="flex items-center gap-3 p-3 rounded-2xl text-left"
                   style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
                 >
