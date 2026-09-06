@@ -433,6 +433,7 @@ export default function RecipeKeeper() {
   const confirmDeleteFolderRef = useRef(null);
   const showMoveFolderRef = useRef(false);
   const showCategoryManageRef = useRef(false);
+  const showShareFeatureInfoRef = useRef(false);
   const confirmDeleteCategoryRef = useRef(null);
 
   useEffect(() => {
@@ -469,6 +470,12 @@ export default function RecipeKeeper() {
   useEffect(() => {
     function handlePopState() {
       // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
+      // (레시피 담기 시트 위에 떠있는 새로운기능 안내 배너가 있으면 그것부터 먼저 닫아요.)
+      if (showShareFeatureInfoRef.current) {
+        pushBackGuard();
+        setShowShareFeatureInfo(false);
+        return;
+      }
       if (showAddSheetRef.current) {
         pushBackGuard();
         closeAddSheet();
@@ -589,6 +596,7 @@ export default function RecipeKeeper() {
   confirmDeleteFolderRef.current = confirmDeleteFolder;
   showMoveFolderRef.current = showMoveFolder;
   showCategoryManageRef.current = showCategoryManage;
+  showShareFeatureInfoRef.current = showShareFeatureInfo;
   confirmDeleteCategoryRef.current = confirmDeleteCategory;
   // 등록/수정 화면에서 카테고리·폴더를 바로 추가할 때 쓰는 입력창 상태
   const [editCategoryAddOpen, setEditCategoryAddOpen] = useState(false);
