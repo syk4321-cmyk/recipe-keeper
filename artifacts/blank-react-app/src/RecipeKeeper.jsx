@@ -435,6 +435,13 @@ export default function RecipeKeeper() {
   const showCategoryManageRef = useRef(false);
   const showShareFeatureInfoRef = useRef(false);
   const confirmDeleteCategoryRef = useRef(null);
+  // ---- 온보딩 슬라이드 / 코치마크 ----
+  const showOnboardingRef = useRef(false);
+  const showCoachmarkRef = useRef(false);
+  const rootRef = useRef(null);
+  const homeSearchBtnRef = useRef(null);
+  const addBtnRef = useRef(null);
+  const cartBtnRef = useRef(null);
 
   useEffect(() => {
     if (isFirstRenderRef.current) {
@@ -470,6 +477,18 @@ export default function RecipeKeeper() {
   useEffect(() => {
     function handlePopState() {
       // 열려있는 팝업/시트가 있으면 화면 이동보다 그것부터 닫아요.
+      // 코치마크가 떠있으면 뒤로가기로 코치마크부터 닫아요.
+      if (showCoachmarkRef.current) {
+        pushBackGuard();
+        closeCoachmark();
+        return;
+      }
+      // 온보딩 중에는 뒤로가기로 앱을 나가지 않고, 이전 슬라이드로만 이동해요.
+      if (showOnboardingRef.current) {
+        pushBackGuard();
+        setOnboardIndex((i) => (i > 0 ? i - 1 : i));
+        return;
+      }
       // (레시피 담기 시트 위에 떠있는 새로운기능 안내 배너가 있으면 그것부터 먼저 닫아요.)
       if (showShareFeatureInfoRef.current) {
         pushBackGuard();
@@ -574,6 +593,35 @@ export default function RecipeKeeper() {
       setClosingShareFeatureInfo(false);
     }, 260);
   }, []);
+  // ---- 온보딩 슬라이드 ----
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [closingOnboarding, setClosingOnboarding] = useState(false);
+  const [onboardIndex, setOnboardIndex] = useState(0);
+  const closeOnboarding = useCallback((markSeen) => {
+    setClosingOnboarding(true);
+    setTimeout(() => {
+      setShowOnboarding(false);
+      setClosingOnboarding(false);
+      setOnboardIndex(0);
+      if (markSeen) {
+        appStorage.set("hasSeenOnboarding", "true", false).catch(() => {});
+        setView("home");
+        setCoachStep(0);
+        setShowCoachmark(true);
+      }
+    }, 280);
+  }, []);
+  // ---- 코치마크 (+ 버튼 / 재료검색 / 장바구니) ----
+  const [showCoachmark, setShowCoachmark] = useState(false);
+  const [closingCoachmark, setClosingCoachmark] = useState(false);
+  const [coachStep, setCoachStep] = useState(0);
+  const closeCoachmark = useCallback(() => {
+    setClosingCoachmark(true);
+    setTimeout(() => {
+      setShowCoachmark(false);
+      setClosingCoachmark(false);
+    }, 220);
+  }, []);
   const closeAddSheet = useCallback(() => {
     setClosingAddSheet(true);
     setTimeout(() => {
@@ -606,6 +654,38 @@ export default function RecipeKeeper() {
   showCategoryManageRef.current = showCategoryManage;
   showShareFeatureInfoRef.current = showShareFeatureInfo;
   confirmDeleteCategoryRef.current = confirmDeleteCategory;
+  showOnboardingRef.current = showOnboarding;
+  showCoachmarkRef.current = showCoachmark;
+
+  // 코치마크가 짚어야 할 요소(+ 버튼 / 재료검색 / 장바구니 버튼)의 화면 위치를 계산해요.
+  const [coachRect, setCoachRect] = useState(null);
+  useEffect(() => {
+    if (!showCoachmark) return;
+    const targets = [addBtnRef, homeSearchBtnRef, cartBtnRef];
+    const el = targets[coachStep] && targets[coachStep].current;
+    if (!el || !rootRef.current) return;
+    const raf = requestAnimationFrame(() => {
+      const rootBox = rootRef.current.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      setCoachRect({
+        top: box.top - rootBox.top,
+        left: box.left - rootBox.left,
+        width: box.width,
+        height: box.height,
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [showCoachmark, coachStep]);
+
+  const COACH_STEPS = [
+    { text: "여기를 눌러 새 레시피를 추가해요", bubble: "top" },
+    { text: "재료로 레시피를 찾아보세요", bubble: "bottom" },
+    { text: "담아둔 재료는 여기서 확인해요", bubble: "top" },
+  ];
+  function advanceCoach() {
+    if (coachStep < COACH_STEPS.length - 1) setCoachStep((s) => s + 1);
+    else closeCoachmark();
+  }
   // 등록/수정 화면에서 카테고리·폴더를 바로 추가할 때 쓰는 입력창 상태
   const [editCategoryAddOpen, setEditCategoryAddOpen] = useState(false);
   const [editNewCategoryName, setEditNewCategoryName] = useState("");
@@ -788,6 +868,10 @@ export default function RecipeKeeper() {
       try {
         const rs = await appStorage.get("recentSearches", false);
         if (rs && rs.value) setRecentSearches(JSON.parse(rs.value));
+      } catch (e) {}
+      try {
+        const ob = await appStorage.get("hasSeenOnboarding", false);
+        if (!ob || ob.value !== "true") setShowOnboarding(true);
       } catch (e) {}
       setReady(true);
     })();
@@ -1373,6 +1457,7 @@ export default function RecipeKeeper() {
 
   return (
     <div
+      ref={rootRef}
       style={{ backgroundColor: C.ink, minHeight: "100vh", color: C.paper, fontFamily: "'Gowun Dodum', sans-serif" }}
       className="w-full max-w-md mx-auto relative flex flex-col overflow-x-hidden"
     >
@@ -1390,6 +1475,18 @@ export default function RecipeKeeper() {
         .sheet-content { animation: sheetSlideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
         .sheet-backdrop-out { animation: sheetBackdropOut 0.26s ease-in forwards; }
         .sheet-content-out { animation: sheetSlideUpOut 0.26s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
+        @keyframes onboardScreenIn { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes onboardScreenOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(28px); } }
+        .onboard-screen-in { animation: onboardScreenIn 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+        .onboard-screen-out { animation: onboardScreenOut 0.28s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
+        @keyframes onboardStepIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: translateX(0); } }
+        .onboard-step-in { animation: onboardStepIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1); }
+        @keyframes coachBubbleIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes coachBubbleOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+        .coach-bubble-in { animation: coachBubbleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .coach-bubble-out { animation: coachBubbleOut 0.22s ease-in forwards; }
+        @keyframes coachRingIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .coach-ring-in { animation: coachRingIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes pageFadeSlideIn { from { opacity: 1; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .page-enter { animation: pageFadeSlideIn 0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
         @keyframes newFeatureGlow {
@@ -1426,6 +1523,7 @@ export default function RecipeKeeper() {
 
           <div className="px-5 py-2 flex items-center gap-2 min-w-0">
             <button
+              ref={homeSearchBtnRef}
               onClick={() => setView("search")}
               className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl text-left"
               style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
@@ -2724,6 +2822,7 @@ export default function RecipeKeeper() {
             <Search size={22} />
           </button>
           <button
+            ref={addBtnRef}
             onClick={() => setShowAddSheet(true)}
             aria-label="레시피 추가"
             className="w-14 h-14 rounded-full flex items-center justify-center -mt-8 shadow-lg"
@@ -2734,7 +2833,7 @@ export default function RecipeKeeper() {
           <button onClick={() => setView("account")} aria-label="계정" style={{ color: view === "account" ? C.ember : C.muted }}>
             <User size={22} />
           </button>
-          <button onClick={() => setView("shopping")} aria-label="장바구니" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
+          <button ref={cartBtnRef} onClick={() => setView("shopping")} aria-label="장바구니" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
             <div style={{ position: "relative" }}>
               <ShoppingCart size={22} />
               {shoppingList.length > 0 && (
@@ -3254,6 +3353,155 @@ export default function RecipeKeeper() {
             <span style={{ whiteSpace: "nowrap" }}>종료됩니다.</span>
           </div>
         </div>
+      )}
+
+      {/* ---------- 온보딩 슬라이드 (최초 실행 시 1회) ---------- */}
+      {(showOnboarding || closingOnboarding) && (() => {
+        const ONBOARD_SLIDES = [
+          {
+            Icon: ChefHat,
+            title: "레시피, 이제 흩어지지 않게",
+            body: "유튜브와 인스타그램에서 본 레시피를 스크린샷 더미 속에 묻지 말고 쿡마크에 모아두세요.",
+          },
+          {
+            Icon: Link2,
+            title: "링크만 붙여넣으면 끝",
+            body: "유튜브·인스타 링크를 붙여넣으면 재료와 조리 순서를 자동으로 정리해 드려요.",
+          },
+          {
+            Icon: Share2,
+            title: "공유 버튼으로 더 빠르게",
+            body: "레시피 영상을 보다가 공유 버튼을 눌러 쿡마크를 선택하면 바로 저장돼요.",
+          },
+          {
+            Icon: ShoppingCart,
+            title: "레시피 보면서\n장보기 목록 완성",
+            body: "필요한 재료만 체크해서 장바구니에 담아보세요.",
+          },
+        ];
+        const slide = ONBOARD_SLIDES[onboardIndex];
+        const isLast = onboardIndex === ONBOARD_SLIDES.length - 1;
+        return (
+          <div
+            className={`${closingOnboarding ? "onboard-screen-out" : "onboard-screen-in"} fixed inset-0 max-w-md mx-auto z-50 flex flex-col`}
+            style={{ backgroundColor: C.card }}
+          >
+            <div key={onboardIndex} className="onboard-step-in flex-1 flex flex-col items-center justify-center px-9 pb-24 text-center">
+              <div
+                className="w-24 h-24 rounded-3xl flex items-center justify-center mb-8"
+                style={{ backgroundColor: C.emberSoft }}
+              >
+                <slide.Icon size={46} color={C.ember} />
+              </div>
+              <h1
+                style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 21, color: C.paper, lineHeight: 1.45, whiteSpace: "pre-line" }}
+              >
+                {slide.title}
+              </h1>
+              <p className="mt-3" style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.65, maxWidth: 250 }}>
+                {slide.body}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-1.5" style={{ marginBottom: 56 }}>
+              {ONBOARD_SLIDES.map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: i === onboardIndex ? 18 : 6,
+                    height: 6,
+                    borderRadius: 4,
+                    backgroundColor: i === onboardIndex ? C.ember : C.line,
+                    transition: "width 0.25s ease, background-color 0.25s ease",
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between px-6 pb-8">
+              {!isLast ? (
+                <button
+                  onClick={() => closeOnboarding(true)}
+                  style={{ color: C.muted, fontSize: 13.5 }}
+                >
+                  건너뛰기
+                </button>
+              ) : (
+                <span />
+              )}
+              <button
+                onClick={() => (isLast ? closeOnboarding(true) : setOnboardIndex((i) => i + 1))}
+                className="rounded-full font-bold"
+                style={{
+                  backgroundColor: C.ember,
+                  color: C.ink,
+                  padding: isLast ? "11px 40px" : "11px 22px",
+                  fontSize: 14,
+                }}
+              >
+                {isLast ? "시작하기" : "다음"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ---------- 코치마크 (+ 버튼 / 재료검색 / 장바구니) ---------- */}
+      {(showCoachmark || closingCoachmark) && coachRect && (
+        <>
+          <div
+            className={`${closingCoachmark ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 max-w-md mx-auto z-40`}
+            style={{ backgroundColor: "#00000088" }}
+            onClick={advanceCoach}
+          />
+          <div
+            className={`${closingCoachmark ? "" : "coach-ring-in"} absolute z-40`}
+            style={{
+              top: coachRect.top - 7,
+              left: coachRect.left - 7,
+              width: coachRect.width + 14,
+              height: coachRect.height + 14,
+              borderRadius: 18,
+              border: `2px solid ${C.ember}`,
+              boxShadow: `0 0 0 4px ${C.ember}26`,
+              pointerEvents: "none",
+              opacity: closingCoachmark ? 0 : 1,
+              transition: closingCoachmark ? "opacity 0.2s ease" : undefined,
+            }}
+          />
+          <div
+            className={`${closingCoachmark ? "coach-bubble-out" : "coach-bubble-in"} absolute z-40 rounded-2xl p-4`}
+            style={{
+              width: 200,
+              backgroundColor: C.ink,
+              boxShadow: "0 8px 24px #00000030",
+              left: Math.min(
+                Math.max(coachRect.left + coachRect.width / 2 - 100, 16),
+                (rootRef.current ? rootRef.current.clientWidth : 360) - 216
+              ),
+              top:
+                COACH_STEPS[coachStep].bubble === "top"
+                  ? coachRect.top - 118
+                  : coachRect.top + coachRect.height + 14,
+            }}
+          >
+            <p style={{ color: C.paper, fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
+              {COACH_STEPS[coachStep].text}
+            </p>
+            <div className="flex items-center justify-between">
+              <span style={{ color: C.muted, fontSize: 11 }}>
+                {coachStep + 1} / {COACH_STEPS.length}
+              </span>
+              <button
+                onClick={advanceCoach}
+                className="rounded-full font-bold"
+                style={{ backgroundColor: C.ember, color: C.ink, padding: "6px 14px", fontSize: 12 }}
+              >
+                {coachStep === COACH_STEPS.length - 1 ? "확인" : "다음"}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
