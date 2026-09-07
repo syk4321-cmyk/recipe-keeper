@@ -3368,7 +3368,7 @@ export default function RecipeKeeper() {
           {
             logo: true,
             title: "레시피, 이제 흩어지지 않게",
-            body: "유튜브와 인스타그램에서 본 레시피를 스크린샷 더미 속에 묻지 말고 쿡마크에 모아두세요.",
+            body: "유튜브와 인스타그램에서 본 레시피를\n스크린샷 더미 속에 묻지 말고 쿡마크에\n모아두세요.",
           },
           {
             Icon: Link2,
@@ -3383,7 +3383,7 @@ export default function RecipeKeeper() {
           {
             Icon: ShoppingCart,
             title: "레시피 보면서\n장보기 목록 완성",
-            body: "필요한 재료만 체크해서 장바구니에 담아보세요.",
+            body: "필요한 재료만 체크해서\n장바구니에 담아보세요.",
           },
         ];
         const slide = ONBOARD_SLIDES[onboardIndex];
@@ -3409,7 +3409,7 @@ export default function RecipeKeeper() {
               >
                 {slide.title}
               </h1>
-              <p className="mt-3" style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.65, maxWidth: 250 }}>
+              <p className="mt-3" style={{ color: C.muted, fontSize: 14.5, lineHeight: 1.65, maxWidth: 250, whiteSpace: "pre-line" }}>
                 {slide.body}
               </p>
             </div>
