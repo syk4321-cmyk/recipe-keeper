@@ -442,6 +442,7 @@ export default function RecipeKeeper() {
   const homeSearchBtnRef = useRef(null);
   const addBtnRef = useRef(null);
   const cartBtnRef = useRef(null);
+  const featureBtnRef = useRef(null);
 
   useEffect(() => {
     if (isFirstRenderRef.current) {
@@ -661,7 +662,7 @@ export default function RecipeKeeper() {
   const [coachRect, setCoachRect] = useState(null);
   useEffect(() => {
     if (!showCoachmark) return;
-    const targets = [addBtnRef, homeSearchBtnRef, cartBtnRef];
+    const targets = [addBtnRef, homeSearchBtnRef, cartBtnRef, featureBtnRef];
     const el = targets[coachStep] && targets[coachStep].current;
     if (!el || !rootRef.current) return;
     const raf = requestAnimationFrame(() => {
@@ -678,9 +679,14 @@ export default function RecipeKeeper() {
   }, [showCoachmark, coachStep]);
 
   const COACH_STEPS = [
-    { text: "여기를 눌러 새 레시피를 추가해요", bubble: "top" },
+    { text: "새 레시피를\n추가해요", bubble: "top" },
     { text: "재료로 레시피를 찾아보세요", bubble: "bottom" },
     { text: "담아둔 재료는 여기서 확인해요", bubble: "top" },
+    {
+      text: "다른 사용자들과 원하는 기능을 제안하고 투표할 수 있어요",
+      bubble: "bottom",
+      preview: true,
+    },
   ];
   function advanceCoach() {
     if (coachStep < COACH_STEPS.length - 1) setCoachStep((s) => s + 1);
@@ -1511,6 +1517,7 @@ export default function RecipeKeeper() {
             </div>
             <div className="flex items-center gap-2 mt-1 shrink-0">
               <button
+                ref={featureBtnRef}
                 onClick={() => setView("features")}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-full"
                 style={{ backgroundColor: "#FFFFFF", border: `1px solid ${C.line}`, color: C.turmeric }}
@@ -3359,7 +3366,7 @@ export default function RecipeKeeper() {
       {(showOnboarding || closingOnboarding) && (() => {
         const ONBOARD_SLIDES = [
           {
-            Icon: ChefHat,
+            logo: true,
             title: "레시피, 이제 흩어지지 않게",
             body: "유튜브와 인스타그램에서 본 레시피를 스크린샷 더미 속에 묻지 말고 쿡마크에 모아두세요.",
           },
@@ -3388,10 +3395,14 @@ export default function RecipeKeeper() {
           >
             <div key={onboardIndex} className="onboard-step-in flex-1 flex flex-col items-center justify-center px-9 pb-24 text-center">
               <div
-                className="w-24 h-24 rounded-3xl flex items-center justify-center mb-8"
-                style={{ backgroundColor: C.emberSoft }}
+                className="w-24 h-24 rounded-3xl flex items-center justify-center mb-8 overflow-hidden"
+                style={{ backgroundColor: slide.logo ? "transparent" : C.emberSoft }}
               >
-                <slide.Icon size={46} color={C.ember} />
+                {slide.logo ? (
+                  <img src={COOKMARK_LOGO} alt="쿡마크 로고" className="w-full h-full object-cover" style={{ borderRadius: 24 }} />
+                ) : (
+                  <slide.Icon size={46} color={C.ember} />
+                )}
               </div>
               <h1
                 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 21, color: C.paper, lineHeight: 1.45, whiteSpace: "pre-line" }}
@@ -3472,12 +3483,15 @@ export default function RecipeKeeper() {
           <div
             className={`${closingCoachmark ? "coach-bubble-out" : "coach-bubble-in"} absolute z-40 rounded-2xl p-4`}
             style={{
-              width: 200,
+              width: COACH_STEPS[coachStep].preview ? 240 : 200,
               backgroundColor: C.ink,
               boxShadow: "0 8px 24px #00000030",
               left: Math.min(
-                Math.max(coachRect.left + coachRect.width / 2 - 100, 16),
-                (rootRef.current ? rootRef.current.clientWidth : 360) - 216
+                Math.max(
+                  coachRect.left + coachRect.width / 2 - (COACH_STEPS[coachStep].preview ? 120 : 100),
+                  16
+                ),
+                (rootRef.current ? rootRef.current.clientWidth : 360) - (COACH_STEPS[coachStep].preview ? 256 : 216)
               ),
               top:
                 COACH_STEPS[coachStep].bubble === "top"
@@ -3485,7 +3499,23 @@ export default function RecipeKeeper() {
                   : coachRect.top + coachRect.height + 14,
             }}
           >
-            <p style={{ color: C.paper, fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
+            {COACH_STEPS[coachStep].preview && (
+              <div className="rounded-xl p-2 mb-2.5" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+                <div className="flex items-center gap-1 mb-1.5" style={{ fontSize: 10, color: C.turmeric, fontWeight: 700 }}>
+                  <Lightbulb size={11} /> 기능 제안
+                </div>
+                <div className="rounded-lg px-2 py-1 mb-1.5" style={{ backgroundColor: C.ink, fontSize: 10, color: C.muted }}>
+                  예: 재료로 레시피 검색하기
+                </div>
+                <div className="flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ backgroundColor: C.ink }}>
+                  <div className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: C.emberSoft }}>
+                    <ArrowBigUp size={10} color={C.ember} />
+                  </div>
+                  <span style={{ fontSize: 10, color: C.paper }}>추천 레시피가 있으면 좋겠어요</span>
+                </div>
+              </div>
+            )}
+            <p style={{ color: C.paper, fontSize: 13, lineHeight: 1.5, marginBottom: 10, whiteSpace: "pre-line" }}>
               {COACH_STEPS[coachStep].text}
             </p>
             <div className="flex items-center justify-between">
