@@ -4,6 +4,7 @@ import {
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
+  Mail, FileText, ShieldCheck,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -399,6 +400,28 @@ function ReceiptRow({ name, amount, mono = true }) {
         {amount}
       </span>
     </div>
+  );
+}
+
+function SettingsRow({ Icon, iconBg, title, subtitle, onClick, last = false }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+      style={{ borderBottom: last ? "none" : `1px solid ${C.line}` }}
+    >
+      <div
+        className="flex items-center justify-center rounded-xl shrink-0"
+        style={{ width: 40, height: 40, backgroundColor: iconBg || C.emberSoft }}
+      >
+        <Icon size={18} color={C.ember} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold truncate" style={{ color: C.paper }}>{title}</p>
+        {subtitle && <p className="text-xs truncate mt-0.5" style={{ color: C.muted }}>{subtitle}</p>}
+      </div>
+      <ChevronRight size={18} color={C.muted} />
+    </button>
   );
 }
 
@@ -2674,6 +2697,42 @@ export default function RecipeKeeper() {
               <LogOut size={15} />
               로그아웃
             </button>
+
+            <div>
+              <p className="text-xs font-bold px-1 mb-2" style={{ color: C.muted }}>고객센터</p>
+              <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+                <SettingsRow
+                  Icon={Mail}
+                  title="이메일로 문의하기"
+                  subtitle="hello.cookmark@gmail.com"
+                  onClick={() => window.open("mailto:hello.cookmark@gmail.com", "_blank")}
+                />
+                <SettingsRow
+                  Icon={Lightbulb}
+                  title="기능 제안"
+                  subtitle="원하는 기능을 제안하고 투표해보세요"
+                  onClick={() => setView("features")}
+                  last
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold px-1 mb-2" style={{ color: C.muted }}>약관 및 정책</p>
+              <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+                <SettingsRow
+                  Icon={FileText}
+                  title="서비스 이용약관"
+                  onClick={() => window.open("/terms-of-service.html", "_blank")}
+                />
+                <SettingsRow
+                  Icon={ShieldCheck}
+                  title="개인정보처리방침"
+                  onClick={() => window.open("/privacy-policy.html", "_blank")}
+                  last
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
