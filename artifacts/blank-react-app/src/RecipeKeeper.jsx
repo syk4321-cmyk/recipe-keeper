@@ -1504,7 +1504,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- HOME ---------- */}
       {view === "home" && (
-        <div className="page-enter flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="px-5 pt-6 pb-2 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -1722,7 +1722,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- PREVIEW / EDIT ---------- */}
       {view === "preview" && draft && (
-        <div className="page-enter flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={requestLeaveEdit}>
               <X size={22} color={C.paper} />
@@ -2111,7 +2111,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- DETAIL ---------- */}
       {view === "detail" && selectedRecipe && (
-        <div className="page-enter flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="flex items-center justify-between px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <div className="flex items-center gap-4">
@@ -2404,7 +2404,7 @@ export default function RecipeKeeper() {
       )}
 
       {view === "shopping" && (
-        <div className="page-enter flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>장바구니</span>
@@ -2473,7 +2473,7 @@ export default function RecipeKeeper() {
 
       {/* ---------- 장바구니 수정 페이지 ---------- */}
       {view === "cartEdit" && (
-        <div className="page-enter flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("shopping")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>장바구니 수정</span>
@@ -2642,7 +2642,7 @@ export default function RecipeKeeper() {
       )}
 
       {view === "account" && (
-        <div className="page-enter flex flex-col flex-1 pb-10">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>계정 정보</span>
@@ -2679,7 +2679,7 @@ export default function RecipeKeeper() {
       )}
 
       {view === "search" && (
-        <div className="page-enter flex flex-col flex-1 pb-24">
+        <div className="page-enter flex flex-col flex-1 pb-32">
           <div className="flex items-center gap-3 px-4 py-4">
             <button onClick={() => setView("home")}><ChevronLeft size={24} color={C.paper} /></button>
             <span className="font-bold" style={{ color: C.paper }}>검색</span>
@@ -2812,59 +2812,68 @@ export default function RecipeKeeper() {
         </div>
       )}
 
-      {/* ---------- BOTTOM NAV ---------- */}
+      {/* ---------- BOTTOM NAV (+ 광고 배너 자리) ---------- */}
       {(view === "home" || view === "shopping" || view === "detail" || view === "account" || view === "search") && (
-        <div
-          className="fixed bottom-0 left-0 right-0 max-w-md mx-auto flex items-center justify-around py-3 px-6"
-          style={{ backgroundColor: C.card, borderTop: `1px solid ${C.line}` }}
-        >
-          <button onClick={() => setView("home")} aria-label="홈" style={{ color: view === "home" ? C.ember : C.muted }}>
-            <Home size={22} />
-          </button>
-          <button
-            onClick={() => setView("search")}
-            aria-label="검색"
-            style={{ color: view === "search" ? C.ember : C.muted }}
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto">
+          {/* 광고 배너 자리 - 추후 네이티브 전환 시 AdMob/카카오 애드핏 SDK로 교체 예정 */}
+          <div
+            className="w-full flex items-center justify-center"
+            style={{ height: 52, backgroundColor: C.raised, borderTop: `1px dashed ${C.line}` }}
           >
-            <Search size={22} />
-          </button>
-          <button
-            ref={addBtnRef}
-            onClick={() => setShowAddSheet(true)}
-            aria-label="레시피 추가"
-            className="w-14 h-14 rounded-full flex items-center justify-center -mt-8 shadow-lg"
-            style={{ backgroundColor: C.ember, color: C.ink }}
+            <span style={{ fontSize: 11, color: C.muted }}>광고 배너 자리</span>
+          </div>
+          <div
+            className="flex items-center justify-around py-3 px-6"
+            style={{ backgroundColor: C.card, borderTop: `1px solid ${C.line}` }}
           >
-            <Plus size={26} />
-          </button>
-          <button onClick={() => setView("account")} aria-label="계정" style={{ color: view === "account" ? C.ember : C.muted }}>
-            <User size={22} />
-          </button>
-          <button ref={cartBtnRef} onClick={() => setView("shopping")} aria-label="장바구니" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
-            <div style={{ position: "relative" }}>
-              <ShoppingCart size={22} />
-              {shoppingList.length > 0 && (
-                <span
-                  className="flex items-center justify-center"
-                  style={{
-                    position: "absolute",
-                    top: -6,
-                    right: -8,
-                    minWidth: 16,
-                    height: 16,
-                    padding: "0 4px",
-                    borderRadius: 999,
-                    backgroundColor: C.ember,
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}
-                >
-                  {shoppingList.length}
-                </span>
-              )}
-            </div>
-          </button>
+            <button onClick={() => setView("home")} aria-label="홈" style={{ color: view === "home" ? C.ember : C.muted }}>
+              <Home size={22} />
+            </button>
+            <button
+              onClick={() => setView("search")}
+              aria-label="검색"
+              style={{ color: view === "search" ? C.ember : C.muted }}
+            >
+              <Search size={22} />
+            </button>
+            <button
+              ref={addBtnRef}
+              onClick={() => setShowAddSheet(true)}
+              aria-label="레시피 추가"
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: C.ember, color: C.ink }}
+            >
+              <Plus size={20} />
+            </button>
+            <button onClick={() => setView("account")} aria-label="계정" style={{ color: view === "account" ? C.ember : C.muted }}>
+              <User size={22} />
+            </button>
+            <button ref={cartBtnRef} onClick={() => setView("shopping")} aria-label="장바구니" style={{ color: view === "shopping" ? C.ember : C.muted, position: "relative" }}>
+              <div style={{ position: "relative" }}>
+                <ShoppingCart size={22} />
+                {shoppingList.length > 0 && (
+                  <span
+                    className="flex items-center justify-center"
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -8,
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      backgroundColor: C.ember,
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {shoppingList.length}
+                  </span>
+                )}
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
