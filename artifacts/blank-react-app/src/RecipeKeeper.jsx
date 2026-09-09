@@ -4,7 +4,7 @@ import {
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
-  Mail, FileText, ShieldCheck,
+  Mail, FileText, ShieldCheck, MessageCircle, Send,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -25,6 +25,17 @@ const C = {
 };
 
 const CATEGORIES = ["한식", "중식", "일식", "양식", "디저트", "기타"];
+
+// 레시피당 하루에 AI 채팅으로 물어볼 수 있는 최대 횟수
+const CHAT_DAILY_LIMIT = 10;
+
+// 로컬 기준 오늘 날짜를 "YYYY-MM-DD"로 반환 (UTC 변환 없이, 자정 근처 오차 방지)
+function todayKey() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
 
 // 뒤로가기 안전장치(가짜 히스토리)를 한번에 여러 개 쌓아서, 안드로이드가
 // "히스토리 맨 끝"으로 오해해 앱을 통째로 꺼버리는 경계선에서 항상 멀리 떨어져 있게 해요.
@@ -458,6 +469,7 @@ export default function RecipeKeeper() {
   const showCategoryManageRef = useRef(false);
   const showShareFeatureInfoRef = useRef(false);
   const confirmDeleteCategoryRef = useRef(null);
+  const showChatSheetRef = useRef(false);
   // ---- 온보딩 슬라이드 / 코치마크 ----
   const showOnboardingRef = useRef(false);
   const showCoachmarkRef = useRef(false);
@@ -522,6 +534,11 @@ export default function RecipeKeeper() {
       if (showAddSheetRef.current) {
         pushBackGuard();
         closeAddSheet();
+        return;
+      }
+      if (showChatSheetRef.current) {
+        pushBackGuard();
+        closeChatSheet();
         return;
       }
       if (confirmDeleteIdRef.current) {
@@ -670,6 +687,16 @@ export default function RecipeKeeper() {
       setClosingCategoryManage(false);
     }, 260);
   }, []);
+  const closeChatSheet = useCallback(() => {
+    setClosingChatSheet(true);
+    setTimeout(() => {
+      setShowChatSheet(false);
+      setClosingChatSheet(false);
+      // 시트를 닫으면 대화 내용은 저장하지 않고 비워요 (로컬 state만 사용)
+      setChatMessages([]);
+      setChatInput("");
+    }, 260);
+  }, []);
   showAddSheetRef.current = showAddSheet;
   confirmDeleteIdRef.current = confirmDeleteId;
   showFolderManageRef.current = showFolderManage;
@@ -680,6 +707,7 @@ export default function RecipeKeeper() {
   confirmDeleteCategoryRef.current = confirmDeleteCategory;
   showOnboardingRef.current = showOnboarding;
   showCoachmarkRef.current = showCoachmark;
+  showChatSheetRef.current = showChatSheet;
 
   // 코치마크가 짚어야 할 요소(+ 버튼 / 재료검색 / 장바구니 버튼)의 화면 위치를 계산해요.
   const [coachRect, setCoachRect] = useState(null);
@@ -844,6 +872,22 @@ export default function RecipeKeeper() {
   const [ready, setReady] = useState(false);
   const fileInputRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // ---- 레시피 상세 화면의 AI 채팅 시트 ----
+  const [showChatSheet, setShowChatSheet] = useState(false);
+  const [closingChatSheet, setClosingChatSheet] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]); // { role: "user"|"assistant"|"error", content }
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatCount, setChatCount] = useState(0);
+  const [chatCountLoading, setChatCountLoading] = useState(false);
+  const chatScrollRef = useRef(null);
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, chatSending, showChatSheet]);
 
   useEffect(() => {
     if (!user) return; // 로그인 확인 전이거나 로그아웃 상태면 아직 불러오지 않음
@@ -1372,6 +1416,76 @@ export default function RecipeKeeper() {
     setViewServings((r && r.servings) || 2);
     setRecipes((prev) => prev.map((rec) => (rec.id === id ? { ...rec, viewCount: (rec.viewCount || 0) + 1 } : rec)));
     setView("detail");
+    // 다른 레시피로 넘어갈 때 이전 채팅 내용이 섞이지 않도록 초기화
+    setShowChatSheet(false);
+    setClosingChatSheet(false);
+    setChatMessages([]);
+    setChatInput("");
+  }
+
+  // AI 채팅 시트를 열면서, 이 레시피의 오늘 남은 질문 횟수를 Firestore에서 불러와요.
+  async function openChatSheet() {
+    setShowChatSheet(true);
+    if (!user || !selectedRecipe) return;
+    setChatCountLoading(true);
+    try {
+      const countRef = doc(db, "users", user.uid, "data", `aiChatCount_${selectedRecipe.id}`);
+      const snap = await getDoc(countRef);
+      const data = snap.exists() ? snap.data() : null;
+      setChatCount(data && data.date === todayKey() ? data.count || 0 : 0);
+    } catch (e) {
+      setChatCount(0);
+    } finally {
+      setChatCountLoading(false);
+    }
+  }
+
+  async function sendChatMessage() {
+    const question = chatInput.trim();
+    if (!question || chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT || !user || !selectedRecipe) return;
+
+    const historyForApi = chatMessages.filter((m) => m.role === "user" || m.role === "assistant");
+    setChatMessages((prev) => [...prev, { role: "user", content: question }]);
+    setChatInput("");
+    setChatSending(true);
+
+    try {
+      const today = todayKey();
+      const countRef = doc(db, "users", user.uid, "data", `aiChatCount_${selectedRecipe.id}`);
+      const snap = await getDoc(countRef);
+      const data = snap.exists() ? snap.data() : null;
+      const currentCount = data && data.date === today ? data.count || 0 : 0;
+
+      if (currentCount >= CHAT_DAILY_LIMIT) {
+        setChatCount(currentCount);
+        setChatMessages((prev) => [...prev, { role: "error", content: "오늘 질문 횟수를 다 쓰셨어요." }]);
+        return;
+      }
+
+      const res = await fetch("/api/recipe/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipeTitle: selectedRecipe.title,
+          ingredients: selectedRecipe.ingredients.map((ing) => [ing.name, ing.amount].filter(Boolean).join(" ")),
+          steps: selectedRecipe.steps,
+          question,
+          history: historyForApi,
+        }),
+      });
+      const data2 = await res.json();
+      if (data2.error) throw new Error(data2.error);
+
+      setChatMessages((prev) => [...prev, { role: "assistant", content: data2.answer }]);
+
+      const newCount = currentCount + 1;
+      await setDoc(countRef, { date: today, count: newCount });
+      setChatCount(newCount);
+    } catch (e) {
+      setChatMessages((prev) => [...prev, { role: "error", content: "답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요." }]);
+    } finally {
+      setChatSending(false);
+    }
   }
 
   function addCheckedToShoppingList(recipe) {
@@ -2337,6 +2451,22 @@ export default function RecipeKeeper() {
         </div>
       )}
 
+      {/* ---------- AI 채팅 플로팅 버튼 (재료 영역 우측 하단, 광고 배너/하단 네비 위) ---------- */}
+      {view === "detail" && selectedRecipe && (
+        <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 132 }}>
+          <div className="flex justify-end px-5">
+            <button
+              onClick={openChatSheet}
+              aria-label="레시피 AI에게 물어보기"
+              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
+            >
+              <MessageCircle size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---------- COOKING MODE ---------- */}
       {view === "cooking" && selectedRecipe && (
         <div className="page-enter flex flex-col flex-1" style={{ minHeight: "100%" }}>
@@ -3090,6 +3220,99 @@ export default function RecipeKeeper() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- AI 채팅 시트 ---------- */}
+      {(showChatSheet || closingChatSheet) && (
+        <div
+          className={`${closingChatSheet ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20`}
+          style={{ backgroundColor: "#00000099" }}
+          onClick={closeChatSheet}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`${closingChatSheet ? "sheet-content-out" : "sheet-content"} w-full rounded-t-3xl p-5 flex flex-col`}
+            style={{ backgroundColor: C.ink, border: `1px solid ${C.line}`, height: "50vh" }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="flex items-center gap-1.5" style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
+                <Sparkles size={16} color={C.ember} /> 레시피 AI에게 물어보기
+              </h3>
+              <button onClick={closeChatSheet}><X size={22} color={C.muted} /></button>
+            </div>
+
+            <span
+              className="text-xs px-2 py-1 rounded-full self-start mb-3"
+              style={{ backgroundColor: C.emberSoft, color: C.ember, fontWeight: 700 }}
+            >
+              {chatCountLoading ? "..." : `오늘 ${Math.max(0, CHAT_DAILY_LIMIT - chatCount)}/${CHAT_DAILY_LIMIT}회 남음`}
+            </span>
+
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
+              {chatMessages.length === 0 && (
+                <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13 }}>
+                  이 레시피의 재료나 조리법에 대해 궁금한 걸 물어보세요.
+                </p>
+              )}
+              {chatMessages.map((m, idx) => (
+                <div key={idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className="px-3 py-2 rounded-2xl text-sm leading-relaxed"
+                    style={{
+                      maxWidth: "80%",
+                      whiteSpace: "pre-wrap",
+                      backgroundColor: m.role === "user" ? C.ember : m.role === "error" ? C.emberSoft : C.card,
+                      color: m.role === "user" ? C.ink : m.role === "error" ? C.ember : C.paper,
+                      border: m.role === "assistant" ? `1px solid ${C.line}` : "none",
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {chatSending && (
+                <div className="flex justify-start">
+                  <div
+                    className="px-3 py-2 rounded-2xl text-sm flex items-center gap-1.5"
+                    style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, color: C.muted }}
+                  >
+                    <Loader2 size={14} className="animate-spin" /> 생각 중...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 mt-3 shrink-0">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChatMessage();
+                  }
+                }}
+                placeholder={chatCount >= CHAT_DAILY_LIMIT ? "오늘 질문 횟수를 다 쓰셨어요" : "재료나 조리법을 물어보세요"}
+                disabled={chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT}
+                className="flex-1 p-3 rounded-xl text-sm"
+                style={{ backgroundColor: C.card, color: C.paper, border: `1px solid ${C.line}` }}
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={!chatInput.trim() || chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT}
+                className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+                style={{
+                  backgroundColor: C.ember,
+                  color: C.ink,
+                  opacity: !chatInput.trim() || chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT ? 0.5 : 1,
+                }}
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
         </div>
       )}
