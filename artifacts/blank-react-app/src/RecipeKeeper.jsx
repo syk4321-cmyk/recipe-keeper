@@ -26,7 +26,7 @@ const C = {
 
 const CATEGORIES = ["한식", "중식", "일식", "양식", "디저트", "기타"];
 
-// 레시피당 하루에 AI 채팅으로 물어볼 수 있는 최대 횟수
+// 앱 전체를 통틀어 하루에 AI 채팅으로 물어볼 수 있는 최대 횟수 (레시피별이 아니라 유저당 1개로 통합 집계)
 const CHAT_DAILY_LIMIT = 10;
 
 // 로컬 기준 오늘 날짜를 "YYYY-MM-DD"로 반환 (UTC 변환 없이, 자정 근처 오차 방지)
@@ -876,6 +876,7 @@ export default function RecipeKeeper() {
   const [showChatSheet, setShowChatSheet] = useState(false);
   const [closingChatSheet, setClosingChatSheet] = useState(false);
   const [chatMessages, setChatMessages] = useState([]); // { role: "user"|"assistant"|"error", content }
+  const [chatContextType, setChatContextType] = useState("recipe"); // "recipe" | "cart"
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatCount, setChatCount] = useState(0);
@@ -1424,14 +1425,19 @@ export default function RecipeKeeper() {
     setChatInput("");
   }
 
-  // AI 채팅 시트를 열면서, 이 레시피의 오늘 남은 질문 횟수를 Firestore에서 불러와요.
-  async function openChatSheet() {
+  // AI 채팅 횟수는 레시피별이 아니라 앱 전체 하루 기준으로 유저당 문서 1개에 집계해요.
+  function chatCountDocRef() {
+    return doc(db, "users", user.uid, "data", "aiChatCount");
+  }
+
+  // AI 채팅 시트를 열면서, 오늘 남은 질문 횟수를 Firestore에서 불러와요.
+  async function openChatSheet(contextType) {
+    setChatContextType(contextType);
     setShowChatSheet(true);
-    if (!user || !selectedRecipe) return;
+    if (!user) return;
     setChatCountLoading(true);
     try {
-      const countRef = doc(db, "users", user.uid, "data", `aiChatCount_${selectedRecipe.id}`);
-      const snap = await getDoc(countRef);
+      const snap = await getDoc(chatCountDocRef());
       const data = snap.exists() ? snap.data() : null;
       setChatCount(data && data.date === todayKey() ? data.count || 0 : 0);
     } catch (e) {
@@ -1443,7 +1449,8 @@ export default function RecipeKeeper() {
 
   async function sendChatMessage() {
     const question = chatInput.trim();
-    if (!question || chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT || !user || !selectedRecipe) return;
+    if (!question || chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT || !user) return;
+    if (chatContextType === "recipe" && !selectedRecipe) return;
 
     const historyForApi = chatMessages.filter((m) => m.role === "user" || m.role === "assistant");
     setChatMessages((prev) => [...prev, { role: "user", content: question }]);
@@ -1452,7 +1459,7 @@ export default function RecipeKeeper() {
 
     try {
       const today = todayKey();
-      const countRef = doc(db, "users", user.uid, "data", `aiChatCount_${selectedRecipe.id}`);
+      const countRef = chatCountDocRef();
       const snap = await getDoc(countRef);
       const data = snap.exists() ? snap.data() : null;
       const currentCount = data && data.date === today ? data.count || 0 : 0;
@@ -1463,16 +1470,27 @@ export default function RecipeKeeper() {
         return;
       }
 
+      const payload =
+        chatContextType === "cart"
+          ? {
+              contextType: "cart",
+              ingredients: shoppingList.map((item) => [item.name, item.amount].filter(Boolean).join(" ")),
+              question,
+              history: historyForApi,
+            }
+          : {
+              contextType: "recipe",
+              recipeTitle: selectedRecipe.title,
+              ingredients: selectedRecipe.ingredients.map((ing) => [ing.name, ing.amount].filter(Boolean).join(" ")),
+              steps: selectedRecipe.steps,
+              question,
+              history: historyForApi,
+            };
+
       const res = await fetch("/api/recipe/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipeTitle: selectedRecipe.title,
-          ingredients: selectedRecipe.ingredients.map((ing) => [ing.name, ing.amount].filter(Boolean).join(" ")),
-          steps: selectedRecipe.steps,
-          question,
-          history: historyForApi,
-        }),
+        body: JSON.stringify(payload),
       });
       const data2 = await res.json();
       if (data2.error) throw new Error(data2.error);
@@ -2457,7 +2475,7 @@ export default function RecipeKeeper() {
         <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 132 }}>
           <div className="flex justify-end px-5">
             <button
-              onClick={openChatSheet}
+              onClick={() => openChatSheet("recipe")}
               aria-label="레시피 AI에게 물어보기"
               className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center"
               style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
@@ -2621,6 +2639,22 @@ export default function RecipeKeeper() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- AI 채팅 플로팅 버튼 (장바구니 화면, 레시피 상세와 동일한 스타일) ---------- */}
+      {view === "shopping" && (
+        <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 132 }}>
+          <div className="flex justify-end px-5">
+            <button
+              onClick={() => openChatSheet("cart")}
+              aria-label="장바구니 재료로 AI에게 물어보기"
+              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
+            >
+              <MessageCircle size={24} />
+            </button>
           </div>
         </div>
       )}
@@ -3239,7 +3273,8 @@ export default function RecipeKeeper() {
           >
             <div className="flex items-center justify-between mb-2">
               <h3 className="flex items-center gap-1.5" style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
-                <Sparkles size={16} color={C.ember} /> 레시피 AI에게 물어보기
+                <Sparkles size={16} color={C.ember} />{" "}
+                {chatContextType === "cart" ? "장바구니 재료로 물어보기" : "레시피 AI에게 물어보기"}
               </h3>
               <button onClick={closeChatSheet}><X size={22} color={C.muted} /></button>
             </div>
@@ -3254,7 +3289,9 @@ export default function RecipeKeeper() {
             <div ref={chatScrollRef} className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
               {chatMessages.length === 0 && (
                 <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13 }}>
-                  이 레시피의 재료나 조리법에 대해 궁금한 걸 물어보세요.
+                  {chatContextType === "cart"
+                    ? "지금 장바구니에 담긴 재료로 궁금한 걸 물어보세요."
+                    : "이 레시피의 재료나 조리법에 대해 궁금한 걸 물어보세요."}
                 </p>
               )}
               {chatMessages.map((m, idx) => (
@@ -3296,7 +3333,13 @@ export default function RecipeKeeper() {
                     sendChatMessage();
                   }
                 }}
-                placeholder={chatCount >= CHAT_DAILY_LIMIT ? "오늘 질문 횟수를 다 쓰셨어요" : "재료나 조리법을 물어보세요"}
+                placeholder={
+                  chatCount >= CHAT_DAILY_LIMIT
+                    ? "오늘 질문 횟수를 다 쓰셨어요"
+                    : chatContextType === "cart"
+                      ? "담긴 재료로 뭘 만들 수 있는지 물어보세요"
+                      : "재료나 조리법을 물어보세요"
+                }
                 disabled={chatSending || chatCountLoading || chatCount >= CHAT_DAILY_LIMIT}
                 className="flex-1 p-3 rounded-xl text-sm"
                 style={{ backgroundColor: C.card, color: C.paper, border: `1px solid ${C.line}` }}
