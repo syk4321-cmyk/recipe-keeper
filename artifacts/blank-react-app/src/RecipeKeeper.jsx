@@ -707,7 +707,6 @@ export default function RecipeKeeper() {
   confirmDeleteCategoryRef.current = confirmDeleteCategory;
   showOnboardingRef.current = showOnboarding;
   showCoachmarkRef.current = showCoachmark;
-  showChatSheetRef.current = showChatSheet;
 
   // 코치마크가 짚어야 할 요소(+ 버튼 / 재료검색 / 장바구니 버튼)의 화면 위치를 계산해요.
   const [coachRect, setCoachRect] = useState(null);
@@ -882,6 +881,8 @@ export default function RecipeKeeper() {
   const [chatCount, setChatCount] = useState(0);
   const [chatCountLoading, setChatCountLoading] = useState(false);
   const chatScrollRef = useRef(null);
+  // showChatSheet가 이 아래에서 선언되므로, 위쪽 ref 동기화 블록이 아니라 선언 직후에 동기화해요.
+  showChatSheetRef.current = showChatSheet;
 
   useEffect(() => {
     if (chatScrollRef.current) {
