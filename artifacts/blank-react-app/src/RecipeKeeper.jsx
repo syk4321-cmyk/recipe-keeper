@@ -287,29 +287,37 @@ function useReorderList(onReorder) {
 }
 
 // AI 채팅 + 재료 구매하기 플로팅 버튼 행(fixed, bottom: FAB_ROW_BOTTOM, 높이 FAB_ROW_HEIGHT)은
-// 화면에 항상 같은 위치로 떠 있어요. 그 자리에 지금 스크롤된 카드의 끝부분이 겹칠 때만
-// 카드 오른쪽에 여백을 reserve해서, 겹치지 않을 때는 재료명-수량 사이 간격을 최대로 쓰고
-// 겹칠 때만 수량 텍스트가 버튼에 가려지지 않도록 해요.
+// 화면에 항상 같은 위치로 떠 있어요. 지금 스크롤 위치에서 그 자리와 실제로 겹치는
+// "줄(row)"에만 오른쪽 여백을 reserve해서, 카드 전체가 아니라 정말 가려질 위험이 있는
+// 그 줄의 수량 텍스트만 안쪽으로 밀어줘요. 나머지 줄은 평소처럼 수량이 카드 끝까지 붙어요.
 const FAB_ROW_BOTTOM = 132;
 const FAB_ROW_HEIGHT = 56;
 const FAB_ROW_GUTTER = 128; // MarketBadgeStackButton(40) + gap(8) + 쿠키 버튼(56) + 여유
 
-function useFabOverlapGutter(active, deps = []) {
-  const ref = useRef(null);
-  const [needsGutter, setNeedsGutter] = useState(false);
+function useFabOverlapGutter(active, rowIds) {
+  const rowRefs = useRef({});
+  const [overlapping, setOverlapping] = useState(() => new Set());
+  const rowIdsKey = rowIds.join("|");
 
   useEffect(() => {
     if (!active) {
-      setNeedsGutter(false);
+      setOverlapping((prev) => (prev.size === 0 ? prev : new Set()));
       return;
     }
     function check() {
-      const el = ref.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
       const bandTop = window.innerHeight - FAB_ROW_BOTTOM - FAB_ROW_HEIGHT;
       const bandBottom = window.innerHeight - FAB_ROW_BOTTOM;
-      setNeedsGutter(rect.bottom > bandTop && rect.top < bandBottom);
+      const next = new Set();
+      rowIds.forEach((id) => {
+        const el = rowRefs.current[id];
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom > bandTop && rect.top < bandBottom) next.add(id);
+      });
+      setOverlapping((prev) => {
+        if (prev.size === next.size && [...prev].every((id) => next.has(id))) return prev;
+        return next;
+      });
     }
     check();
     window.addEventListener("scroll", check, { passive: true });
@@ -319,9 +327,13 @@ function useFabOverlapGutter(active, deps = []) {
       window.removeEventListener("resize", check);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, ...deps]);
+  }, [active, rowIdsKey]);
 
-  return [ref, needsGutter];
+  function rowRef(id) {
+    return (el) => { rowRefs.current[id] = el; };
+  }
+
+  return { rowRef, isRowOverlapping: (id) => overlapping.has(id) };
 }
 
 function emptyDraft() {
@@ -1772,13 +1784,18 @@ export default function RecipeKeeper() {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
 
-  // 재료/장바구니 카드가 지금 스크롤돼서 AI 채팅+재료 구매하기 버튼 행과 겹칠 때만
-  // 카드 오른쪽에 여백을 둬요 — 평소엔 재료명-수량 사이 간격을 최대로 씁니다.
-  const [ingredientCardRef, ingredientCardNeedsGutter] = useFabOverlapGutter(view === "detail", [
-    selectedRecipe && selectedRecipe.ingredients ? selectedRecipe.ingredients.length : 0,
-    viewServings,
-  ]);
-  const [shoppingCardRef, shoppingCardNeedsGutter] = useFabOverlapGutter(view === "shopping", [shoppingList.length]);
+  // 재료/장바구니 목록에서 지금 스크롤돼서 AI 채팅+재료 구매하기 버튼 행과 실제로
+  // 겹치는 "줄"에만 여백을 둬요 — 나머지 줄은 평소처럼 수량이 카드 끝까지 붙습니다.
+  const ingredientRowIds = view === "detail" && selectedRecipe ? selectedRecipe.ingredients.map((ing) => ing.id) : [];
+  const { rowRef: ingredientRowRef, isRowOverlapping: isIngredientRowOverlapping } = useFabOverlapGutter(
+    view === "detail",
+    ingredientRowIds
+  );
+  const shoppingRowIds = view === "shopping" ? shoppingList.map((item) => item.id) : [];
+  const { rowRef: shoppingRowRef, isRowOverlapping: isShoppingRowOverlapping } = useFabOverlapGutter(
+    view === "shopping",
+    shoppingRowIds
+  );
 
   // "구매할 재료 고르기" 시트를 연다 — 장바구니/레시피 상세 두 경로가 이 한 시트를 공유한다.
   // items는 [{id, name, amount}] 형태로, 시트를 열 때마다 선택 상태를 새로 초기화한다.
@@ -2628,23 +2645,18 @@ export default function RecipeKeeper() {
                 )}
               </div>
 
-              <div
-                ref={ingredientCardRef}
-                className="mt-2 rounded-xl p-3"
-                style={{
-                  backgroundColor: C.card,
-                  border: `1px solid ${C.line}`,
-                  paddingRight: ingredientCardNeedsGutter ? FAB_ROW_GUTTER : undefined,
-                }}
-              >
+              <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                 {selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => (
-                  <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                  <label key={ing.id} ref={ingredientRowRef(ing.id)} className="flex items-center gap-2 py-1 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={!!checkedIngredients[ing.id]}
                       onChange={(e) => setCheckedIngredients((prev) => ({ ...prev, [ing.id]: e.target.checked }))}
                     />
-                    <div className="flex-1 min-w-0">
+                    <div
+                      className="flex-1 min-w-0"
+                      style={{ paddingRight: isIngredientRowOverlapping(ing.id) ? FAB_ROW_GUTTER : undefined }}
+                    >
                       <ReceiptRow
                         name={ing.name}
                         amount={scaleAmount(ing.amount, viewServings / (selectedRecipe.servings || 2))}
@@ -2661,13 +2673,16 @@ export default function RecipeKeeper() {
                       양념
                     </p>
                     {selectedRecipe.ingredients.filter((ing) => ing.isSauce).map((ing) => (
-                      <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                      <label key={ing.id} ref={ingredientRowRef(ing.id)} className="flex items-center gap-2 py-1 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={!!checkedIngredients[ing.id]}
                           onChange={(e) => setCheckedIngredients((prev) => ({ ...prev, [ing.id]: e.target.checked }))}
                         />
-                        <div className="flex-1 min-w-0">
+                        <div
+                          className="flex-1 min-w-0"
+                          style={{ paddingRight: isIngredientRowOverlapping(ing.id) ? FAB_ROW_GUTTER : undefined }}
+                        >
                           <ReceiptRow
                             name={ing.name}
                             amount={scaleAmount(ing.amount, viewServings / (selectedRecipe.servings || 2))}
@@ -2871,17 +2886,14 @@ export default function RecipeKeeper() {
                 <p style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
                   이름이 같은 재료는 "자동정리"로 합쳐져요. 이름 수정이나 삭제는 "담은 항목 정리"에서 할 수 있어요.
                 </p>
-                <div
-                  ref={shoppingCardRef}
-                  className="rounded-xl p-3"
-                  style={{
-                    backgroundColor: C.card,
-                    border: `1px solid ${C.line}`,
-                    paddingRight: shoppingCardNeedsGutter ? FAB_ROW_GUTTER : undefined,
-                  }}
-                >
+                <div className="rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                   {shoppingList.map((item) => (
-                    <div key={item.id} className="flex items-center gap-2 py-2" style={{ borderBottom: `1px dashed ${C.line}` }}>
+                    <div
+                      key={item.id}
+                      ref={shoppingRowRef(item.id)}
+                      className="flex items-center gap-2 py-2"
+                      style={{ borderBottom: `1px dashed ${C.line}` }}
+                    >
                       <input
                         type="checkbox"
                         aria-label="구매 완료 체크"
@@ -2890,7 +2902,10 @@ export default function RecipeKeeper() {
                           setShoppingList((prev) => prev.map((i) => (i.id === item.id ? { ...i, checked: e.target.checked } : i)))
                         }
                       />
-                      <div className="flex-1 min-w-0">
+                      <div
+                        className="flex-1 min-w-0"
+                        style={{ paddingRight: isShoppingRowOverlapping(item.id) ? FAB_ROW_GUTTER : undefined }}
+                      >
                         <div style={{ textDecoration: item.checked ? "line-through" : "none", opacity: item.checked ? 0.5 : 1 }}>
                           <ReceiptRow name={item.name} amount={item.amount} />
                         </div>
