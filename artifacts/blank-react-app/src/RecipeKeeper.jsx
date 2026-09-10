@@ -2383,7 +2383,10 @@ export default function RecipeKeeper() {
                 )}
               </div>
 
-              <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
+              <div
+                className="mt-2 rounded-xl p-3"
+                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, paddingRight: 72 }}
+              >
                 {selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => (
                   <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
                     <input
