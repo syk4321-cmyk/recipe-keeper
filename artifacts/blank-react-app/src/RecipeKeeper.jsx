@@ -36,11 +36,19 @@ const COOKIE_GREETINGS = [
   "안녕하세요!\n요리하다 궁금한 거 생기면 저를 찾아주세요\n쿠키(cook-key)가 도와드릴게요 :)",
 ];
 
-// 짧은 인사말만 보낸 경우 AI 호출 없이 즉시 응답하기 위한 판별 — 공백 제거 후 5자 이하이면서
-// 흔한 인사말 패턴에 해당할 때만 매치(애매하면 false를 반환해 일반 AI 호출로 넘어감).
-function isSimpleGreeting(text) {
+// 쿠키 톤으로 준비해둔 감사 인사 응답 (아래 감사 패턴에 매치되면 이 중 하나를 랜덤으로 표시)
+const COOKIE_THANKS_REPLIES = [
+  "천만에요 😊 또 궁금한 거 있으면 편하게 불러주세요!",
+  "도움이 됐다니 다행이에요! 다음에도 쿠키를 찾아주세요 🔑",
+  "별말씀을요! 요리하다 막히면 언제든 물어보세요 :)",
+];
+
+// 짧은 인사말/감사 인사만 보낸 경우 AI 호출 없이 즉시 응답하기 위한 판별 — 공백 제거 후
+// 10자 이하이면서 흔한 인사말·감사 패턴에 해당할 때만 매치(애매하면 null을 반환해
+// 일반 AI 호출로 넘어감). 매치되면 "greeting" | "thanks"를 반환해 응답 문구 풀을 구분한다.
+function isSimpleGreetingOrThanks(text) {
   const trimmed = text.replace(/\s+/g, "");
-  if (!trimmed || trimmed.length > 5) return false;
+  if (!trimmed || trimmed.length > 10) return null;
   const greetingPatterns = [
     /^안녕(하세요|하십니까|히)?[!~.?]*$/,
     /^하이(요|용)?[!~.?]*$/,
@@ -50,7 +58,18 @@ function isSimpleGreeting(text) {
     /^hello[!~.?]*$/i,
     /^헬로(우)?[!~.?]*$/,
   ];
-  return greetingPatterns.some((re) => re.test(trimmed));
+  const thanksPatterns = [
+    /^고마워(요)?[!~.?]*$/,
+    /^고맙습니다[!~.?]*$/,
+    /^감사(합니다|해요|드려요)?[!~.?]*$/,
+    /^ㄳ+[!~.?]*$/,
+    /^thanks?[!~.?]*$/i,
+    /^thankyou[!~.?]*$/i,
+    /^thx[!~.?]*$/i,
+  ];
+  if (greetingPatterns.some((re) => re.test(trimmed))) return "greeting";
+  if (thanksPatterns.some((re) => re.test(trimmed))) return "thanks";
+  return null;
 }
 
 // 로컬 기준 오늘 날짜를 "YYYY-MM-DD"로 반환 (UTC 변환 없이, 자정 근처 오차 방지)
@@ -1482,9 +1501,11 @@ export default function RecipeKeeper() {
     setChatMessages((prev) => [...prev, { role: "user", content: question }]);
     setChatInput("");
 
-    // 단순 인사말이면 AI 호출·하루 횟수 차감 없이 미리 정해둔 인사말로 바로 응답
-    if (isSimpleGreeting(question)) {
-      const reply = COOKIE_GREETINGS[Math.floor(Math.random() * COOKIE_GREETINGS.length)];
+    // 단순 인사말/감사 인사면 AI 호출·하루 횟수 차감 없이 미리 정해둔 문구로 바로 응답
+    const smalltalkType = isSimpleGreetingOrThanks(question);
+    if (smalltalkType) {
+      const pool = smalltalkType === "thanks" ? COOKIE_THANKS_REPLIES : COOKIE_GREETINGS;
+      const reply = pool[Math.floor(Math.random() * pool.length)];
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       return;
     }
