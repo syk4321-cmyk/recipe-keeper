@@ -286,54 +286,18 @@ function useReorderList(onReorder) {
   return { itemRefs, dragActiveIndex, dragOffsetY, handleDragStart };
 }
 
-// AI 채팅 + 재료 구매하기 플로팅 버튼 행(fixed, bottom: FAB_ROW_BOTTOM, 높이 FAB_ROW_HEIGHT)은
-// 화면에 항상 같은 위치로 떠 있어요. 지금 스크롤 위치에서 그 자리와 실제로 겹치는
-// "줄(row)"에만 오른쪽 여백을 reserve해서, 카드 전체가 아니라 정말 가려질 위험이 있는
-// 그 줄의 수량 텍스트만 안쪽으로 밀어줘요. 나머지 줄은 평소처럼 수량이 카드 끝까지 붙어요.
-const FAB_ROW_BOTTOM = 132;
-const FAB_ROW_HEIGHT = 56;
+// AI 채팅 + 재료 구매하기 플로팅 버튼 행은 fixed 포지션이라 화면(뷰포트) 기준으로
+// 항상 같은 높이에 떠 있어요. 스크롤 위치마다 매 줄의 좌표를 계산해서 겹침을
+// 판정하는 방식은 "버튼을 이미 지나간 줄까지 계속 gutter가 남는" 버그가 생기기
+// 쉬워서, 대신 카드의 "마지막 몇 줄"에는 스크롤 위치와 무관하게 항상 고정적으로
+// 여백을 둬요 — 화면 하단 쪽에 떠 있는 버튼과 실제로 겹칠 수 있는 줄은 결국
+// 카드의 끝부분(다음 섹션으로 넘어가기 직전)뿐이기 때문이에요.
 const FAB_ROW_GUTTER = 128; // MarketBadgeStackButton(40) + gap(8) + 쿠키 버튼(56) + 여유
+const FAB_ROW_PROTECTED_ROWS = 2; // 버튼과 겹칠 수 있는, 카드 맨 끝의 고정 보호 줄 수
 
-function useFabOverlapGutter(active, rowIds) {
-  const rowRefs = useRef({});
-  const [overlapping, setOverlapping] = useState(() => new Set());
-  const rowIdsKey = rowIds.join("|");
-
-  useEffect(() => {
-    if (!active) {
-      setOverlapping((prev) => (prev.size === 0 ? prev : new Set()));
-      return;
-    }
-    function check() {
-      const bandTop = window.innerHeight - FAB_ROW_BOTTOM - FAB_ROW_HEIGHT;
-      const bandBottom = window.innerHeight - FAB_ROW_BOTTOM;
-      const next = new Set();
-      rowIds.forEach((id) => {
-        const el = rowRefs.current[id];
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        if (rect.bottom > bandTop && rect.top < bandBottom) next.add(id);
-      });
-      setOverlapping((prev) => {
-        if (prev.size === next.size && [...prev].every((id) => next.has(id))) return prev;
-        return next;
-      });
-    }
-    check();
-    window.addEventListener("scroll", check, { passive: true });
-    window.addEventListener("resize", check);
-    return () => {
-      window.removeEventListener("scroll", check);
-      window.removeEventListener("resize", check);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, rowIdsKey]);
-
-  function rowRef(id) {
-    return (el) => { rowRefs.current[id] = el; };
-  }
-
-  return { rowRef, isRowOverlapping: (id) => overlapping.has(id) };
+// ids 배열의 마지막 n개를 Set으로 돌려줘요 (버튼과 겹칠 수 있는 "마지막 줄들" 판정용).
+function lastRowIds(ids, n) {
+  return new Set(ids.slice(Math.max(0, ids.length - n)));
 }
 
 function emptyDraft() {
@@ -1784,18 +1748,17 @@ export default function RecipeKeeper() {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
 
-  // 재료/장바구니 목록에서 지금 스크롤돼서 AI 채팅+재료 구매하기 버튼 행과 실제로
-  // 겹치는 "줄"에만 여백을 둬요 — 나머지 줄은 평소처럼 수량이 카드 끝까지 붙습니다.
-  const ingredientRowIds = view === "detail" && selectedRecipe ? selectedRecipe.ingredients.map((ing) => ing.id) : [];
-  const { rowRef: ingredientRowRef, isRowOverlapping: isIngredientRowOverlapping } = useFabOverlapGutter(
-    view === "detail",
-    ingredientRowIds
-  );
-  const shoppingRowIds = view === "shopping" ? shoppingList.map((item) => item.id) : [];
-  const { rowRef: shoppingRowRef, isRowOverlapping: isShoppingRowOverlapping } = useFabOverlapGutter(
-    view === "shopping",
-    shoppingRowIds
-  );
+  // 재료/장바구니 카드의 마지막 몇 줄에만 AI 채팅+재료 구매하기 버튼과 겹치지 않도록
+  // 고정 여백을 둬요(스크롤 위치와 무관). 렌더링 순서(재료 -> 양념)를 그대로 따라야
+  // 실제로 카드 맨 끝에 오는 줄이 정확히 잡혀요.
+  const orderedIngredientIds = selectedRecipe
+    ? [
+        ...selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => ing.id),
+        ...selectedRecipe.ingredients.filter((ing) => ing.isSauce).map((ing) => ing.id),
+      ]
+    : [];
+  const protectedIngredientIds = lastRowIds(orderedIngredientIds, FAB_ROW_PROTECTED_ROWS);
+  const protectedShoppingIds = lastRowIds(shoppingList.map((item) => item.id), FAB_ROW_PROTECTED_ROWS);
 
   // "구매할 재료 고르기" 시트를 연다 — 장바구니/레시피 상세 두 경로가 이 한 시트를 공유한다.
   // items는 [{id, name, amount}] 형태로, 시트를 열 때마다 선택 상태를 새로 초기화한다.
@@ -2647,7 +2610,7 @@ export default function RecipeKeeper() {
 
               <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}>
                 {selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => (
-                  <label key={ing.id} ref={ingredientRowRef(ing.id)} className="flex items-center gap-2 py-1 cursor-pointer">
+                  <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={!!checkedIngredients[ing.id]}
@@ -2655,7 +2618,7 @@ export default function RecipeKeeper() {
                     />
                     <div
                       className="flex-1 min-w-0"
-                      style={{ paddingRight: isIngredientRowOverlapping(ing.id) ? FAB_ROW_GUTTER : undefined }}
+                      style={{ paddingRight: protectedIngredientIds.has(ing.id) ? FAB_ROW_GUTTER : undefined }}
                     >
                       <ReceiptRow
                         name={ing.name}
@@ -2673,7 +2636,7 @@ export default function RecipeKeeper() {
                       양념
                     </p>
                     {selectedRecipe.ingredients.filter((ing) => ing.isSauce).map((ing) => (
-                      <label key={ing.id} ref={ingredientRowRef(ing.id)} className="flex items-center gap-2 py-1 cursor-pointer">
+                      <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={!!checkedIngredients[ing.id]}
@@ -2681,7 +2644,7 @@ export default function RecipeKeeper() {
                         />
                         <div
                           className="flex-1 min-w-0"
-                          style={{ paddingRight: isIngredientRowOverlapping(ing.id) ? FAB_ROW_GUTTER : undefined }}
+                          style={{ paddingRight: protectedIngredientIds.has(ing.id) ? FAB_ROW_GUTTER : undefined }}
                         >
                           <ReceiptRow
                             name={ing.name}
@@ -2890,7 +2853,6 @@ export default function RecipeKeeper() {
                   {shoppingList.map((item) => (
                     <div
                       key={item.id}
-                      ref={shoppingRowRef(item.id)}
                       className="flex items-center gap-2 py-2"
                       style={{ borderBottom: `1px dashed ${C.line}` }}
                     >
@@ -2904,7 +2866,7 @@ export default function RecipeKeeper() {
                       />
                       <div
                         className="flex-1 min-w-0"
-                        style={{ paddingRight: isShoppingRowOverlapping(item.id) ? FAB_ROW_GUTTER : undefined }}
+                        style={{ paddingRight: protectedShoppingIds.has(item.id) ? FAB_ROW_GUTTER : undefined }}
                       >
                         <div style={{ textDecoration: item.checked ? "line-through" : "none", opacity: item.checked ? 0.5 : 1 }}>
                           <ReceiptRow name={item.name} amount={item.amount} />
