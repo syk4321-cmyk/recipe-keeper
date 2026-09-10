@@ -4,7 +4,7 @@ import {
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
-  Mail, FileText, ShieldCheck, MessageCircle, Send,
+  Mail, FileText, ShieldCheck, Send,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -2476,11 +2476,11 @@ export default function RecipeKeeper() {
           <div className="flex justify-end px-5">
             <button
               onClick={() => openChatSheet("recipe")}
-              aria-label="레시피 AI에게 물어보기"
-              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
+              aria-label="쿠키에게 물어보기"
+              className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden"
+              style={{ boxShadow: "0 4px 14px #00000055" }}
             >
-              <MessageCircle size={24} />
+              <img src="/icons/cookie-icon.png" alt="쿠키" className="w-full h-full object-cover" />
             </button>
           </div>
         </div>
@@ -2649,11 +2649,11 @@ export default function RecipeKeeper() {
           <div className="flex justify-end px-5">
             <button
               onClick={() => openChatSheet("cart")}
-              aria-label="장바구니 재료로 AI에게 물어보기"
-              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
+              aria-label="쿠키에게 장바구니 재료로 물어보기"
+              className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden"
+              style={{ boxShadow: "0 4px 14px #00000055" }}
             >
-              <MessageCircle size={24} />
+              <img src="/icons/cookie-icon.png" alt="쿠키" className="w-full h-full object-cover" />
             </button>
           </div>
         </div>
@@ -3274,7 +3274,7 @@ export default function RecipeKeeper() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="flex items-center gap-1.5" style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
                 <Sparkles size={16} color={C.ember} />{" "}
-                {chatContextType === "cart" ? "장바구니 재료로 물어보기" : "레시피 AI에게 물어보기"}
+                {chatContextType === "cart" ? "쿠키에게 장바구니 재료로 물어보기" : "쿠키에게 물어보기"}
               </h3>
               <button onClick={closeChatSheet}><X size={22} color={C.muted} /></button>
             </div>
@@ -3290,8 +3290,8 @@ export default function RecipeKeeper() {
               {chatMessages.length === 0 && (
                 <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13 }}>
                   {chatContextType === "cart"
-                    ? "지금 장바구니에 담긴 재료로 궁금한 걸 물어보세요."
-                    : "이 레시피의 재료나 조리법에 대해 궁금한 걸 물어보세요."}
+                    ? "안녕하세요! 저는 쿠키예요 🍪 지금 장바구니에 담긴 재료로 궁금한 걸 물어보세요."
+                    : "안녕하세요! 저는 쿠키예요 🍪 이 레시피의 재료나 조리법에 대해 궁금한 걸 물어보세요."}
                 </p>
               )}
               {chatMessages.map((m, idx) => (
