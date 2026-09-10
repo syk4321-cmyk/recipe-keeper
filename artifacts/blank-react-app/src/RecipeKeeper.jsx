@@ -4,7 +4,7 @@ import {
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
-  Mail, FileText, ShieldCheck, Send,
+  Mail, FileText, ShieldCheck, Send, KeyRound,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -515,6 +515,22 @@ function MarketBadgeStackButton({ onClick }) {
           style={{ left: 8, top: 0, width: 18, height: 18, backgroundColor: MARKET_BADGES.kurly.background, border: `2px solid ${C.card}` }}
         />
       </span>
+    </button>
+  );
+}
+
+// 쿠키 AI 채팅 트리거 버튼 — 원형 배경은 이미지가 아니라 앱 브랜드 컬러 토큰(C.ember)을
+// 코드로 직접 칠해서, 나중에 브랜드 컬러가 바뀌어도 이미지 재작업 없이 자동으로
+// 맞춰지도록 한다. 열쇠 아이콘도 lucide-react의 KeyRound를 그대로 사용한다.
+function CookieAiButton({ onClick, ariaLabel }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center shrink-0"
+      style={{ backgroundColor: C.ember, boxShadow: "0 4px 14px #00000055" }}
+    >
+      <KeyRound size={28} color={C.card} strokeWidth={2.25} />
     </button>
   );
 }
@@ -2676,14 +2692,7 @@ export default function RecipeKeeper() {
             {selectedRecipe.ingredients && selectedRecipe.ingredients.length > 0 && (
               <MarketBadgeStackButton onClick={openIngredientPurchasePicker} />
             )}
-            <button
-              onClick={() => openChatSheet("recipe")}
-              aria-label="쿠키에게 물어보기"
-              className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden shrink-0"
-              style={{ boxShadow: "0 4px 14px #00000055" }}
-            >
-              <img src="/icons/cookie-icon.png" alt="쿠키" className="w-full h-full object-cover" />
-            </button>
+            <CookieAiButton onClick={() => openChatSheet("recipe")} ariaLabel="쿠키에게 물어보기" />
           </div>
         </div>
       )}
@@ -2858,14 +2867,7 @@ export default function RecipeKeeper() {
         <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 132 }}>
           <div className="flex items-center justify-end gap-2 px-5">
             {shoppingList.length > 0 && <MarketBadgeStackButton onClick={openShoppingPurchasePicker} />}
-            <button
-              onClick={() => openChatSheet("cart")}
-              aria-label="쿠키에게 장바구니 재료로 물어보기"
-              className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden shrink-0"
-              style={{ boxShadow: "0 4px 14px #00000055" }}
-            >
-              <img src="/icons/cookie-icon.png" alt="쿠키" className="w-full h-full object-cover" />
-            </button>
+            <CookieAiButton onClick={() => openChatSheet("cart")} ariaLabel="쿠키에게 장바구니 재료로 물어보기" />
           </div>
         </div>
       )}
