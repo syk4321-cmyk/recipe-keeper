@@ -74,6 +74,31 @@ function isSimpleGreetingOrThanks(text) {
   return null;
 }
 
+// 쿠키 채팅 시트를 열 때 인사말 아래에 보여줄 예시 질문(탭 불가, 안내용 텍스트) —
+// 그 시점의 실제 재료로 매번 새로 만들어요. 레시피 채팅은 양념보다 메인 재료를
+// 우선 골라 대체/생략 질문 2개를, 장바구니 채팅은 담긴 재료 이름을 써서 같은 식으로
+// 만들되 재료가 1개뿐이면 범용 예시를 하나 섞어요.
+function getChatExampleQuestions(contextType, recipe, cartItems) {
+  const substituteTemplates = [
+    (name) => `예: ${name} 대신 뭐 넣어도 돼?`,
+    (name) => `예: ${name} 빼도 될까? 또는 대체할 재료가 있을까?`,
+  ];
+
+  if (contextType === "cart") {
+    const names = (cartItems || []).map((item) => item.name).filter(Boolean);
+    if (names.length === 0) return [];
+    if (names.length === 1) {
+      return [substituteTemplates[0](names[0]), "예: 이 재료들로 오늘 뭐 해먹으면 좋을까?"];
+    }
+    return [substituteTemplates[0](names[0]), substituteTemplates[1](names[1])];
+  }
+
+  if (!recipe || !recipe.ingredients) return [];
+  const mainIngredients = recipe.ingredients.filter((ing) => !ing.isSauce);
+  const pool = mainIngredients.length > 0 ? mainIngredients : recipe.ingredients;
+  return pool.slice(0, 2).map((ing, i) => substituteTemplates[i](ing.name));
+}
+
 // 로컬 기준 오늘 날짜를 "YYYY-MM-DD"로 반환 (UTC 변환 없이, 자정 근처 오차 방지)
 function todayKey() {
   const d = new Date();
@@ -3500,9 +3525,16 @@ export default function RecipeKeeper() {
 
             <div ref={chatScrollRef} className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
               {chatMessages.length === 0 && (
-                <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13, whiteSpace: "pre-wrap" }}>
-                  {chatGreeting}
-                </p>
+                <>
+                  <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13, whiteSpace: "pre-wrap" }}>
+                    {chatGreeting}
+                  </p>
+                  {getChatExampleQuestions(chatContextType, selectedRecipe, shoppingList).map((q, idx) => (
+                    <p key={idx} className="text-center" style={{ color: C.muted, fontSize: 13 }}>
+                      {q}
+                    </p>
+                  ))}
+                </>
               )}
               {chatMessages.map((m, idx) => (
                 <div key={idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
