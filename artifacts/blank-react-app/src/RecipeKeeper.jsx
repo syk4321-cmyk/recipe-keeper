@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { auth, db } from "./firebase";
 import LoginScreen from "./LoginScreen";
 
@@ -493,7 +495,20 @@ function getKurlySearchUrl(query) {
   return `https://www.kurly.com/search?sword=${encodeURIComponent(query)}`;
 }
 
-function openInNewTab(url) {
+// 안드로이드 앱(Capacitor WebView) 안에서 window.open으로 쿠팡/컬리 같은 외부
+// 사이트를 열면, 그 요청이 일반 브라우저가 아니라 인앱 웹뷰에서 온 것으로 보여
+// "사용권한이 없습니다" 같은 접근 차단 페이지가 뜬다. 네이티브 앱에서는
+// @capacitor/browser로 진짜 시스템 브라우저(크롬 커스텀 탭 등)를 띄워 우회하고,
+// 일반 웹(PWA)에서는 그대로 window.open을 쓴다.
+async function openInNewTab(url) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await Browser.open({ url });
+      return;
+    } catch (e) {
+      // 네이티브 브라우저 실행에 실패하면 기존 방식으로라도 시도해요.
+    }
+  }
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
