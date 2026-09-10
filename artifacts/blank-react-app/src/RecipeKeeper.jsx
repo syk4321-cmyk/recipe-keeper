@@ -547,6 +547,9 @@ export default function RecipeKeeper() {
   const showShareFeatureInfoRef = useRef(false);
   const confirmDeleteCategoryRef = useRef(null);
   const showChatSheetRef = useRef(false);
+  // 구매 시트(쿠팡/컬리)와 레시피 상세의 재료 선택 시트도 같은 방식으로 뒤로가기 체인에 편입
+  const showPurchaseSheetRef = useRef(false);
+  const showIngredientPurchaseSheetRef = useRef(false);
   // ---- 온보딩 슬라이드 / 코치마크 ----
   const showOnboardingRef = useRef(false);
   const showCoachmarkRef = useRef(false);
@@ -616,6 +619,16 @@ export default function RecipeKeeper() {
       if (showChatSheetRef.current) {
         pushBackGuard();
         closeChatSheet();
+        return;
+      }
+      if (showPurchaseSheetRef.current) {
+        pushBackGuard();
+        setShowPurchaseSheet(false);
+        return;
+      }
+      if (showIngredientPurchaseSheetRef.current) {
+        pushBackGuard();
+        setShowIngredientPurchaseSheet(false);
         return;
       }
       if (confirmDeleteIdRef.current) {
@@ -781,6 +794,7 @@ export default function RecipeKeeper() {
     }, 260);
   }, []);
   showAddSheetRef.current = showAddSheet;
+  showPurchaseSheetRef.current = showPurchaseSheet;
   confirmDeleteIdRef.current = confirmDeleteId;
   showFolderManageRef.current = showFolderManage;
   confirmDeleteFolderRef.current = confirmDeleteFolder;
@@ -953,6 +967,8 @@ export default function RecipeKeeper() {
   // 레시피 상세의 "재료 구매하기" 시트 전용 선택 상태 — 장바구니 담기/조리 중 체크와는 완전히 별개
   const [ingredientPurchaseSelected, setIngredientPurchaseSelected] = useState([]);
   const [showIngredientPurchaseSheet, setShowIngredientPurchaseSheet] = useState(false);
+  // showIngredientPurchaseSheet가 위쪽 ref 동기화 블록보다 아래에서 선언되므로, 선언 직후에 동기화해요.
+  showIngredientPurchaseSheetRef.current = showIngredientPurchaseSheet;
   const [viewServings, setViewServings] = useState(2);
   const [ready, setReady] = useState(false);
   const fileInputRef = useRef(null);
