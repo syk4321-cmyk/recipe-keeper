@@ -36,6 +36,23 @@ const COOKIE_GREETINGS = [
   "안녕하세요!\n요리하다 궁금한 거 생기면 저를 찾아주세요\n쿠키(cook-key)가 도와드릴게요 :)",
 ];
 
+// 짧은 인사말만 보낸 경우 AI 호출 없이 즉시 응답하기 위한 판별 — 공백 제거 후 5자 이하이면서
+// 흔한 인사말 패턴에 해당할 때만 매치(애매하면 false를 반환해 일반 AI 호출로 넘어감).
+function isSimpleGreeting(text) {
+  const trimmed = text.replace(/\s+/g, "");
+  if (!trimmed || trimmed.length > 5) return false;
+  const greetingPatterns = [
+    /^안녕(하세요|하십니까|히)?[!~.?]*$/,
+    /^하이(요|용)?[!~.?]*$/,
+    /^ㅎ+ㅇ+[!~.?]*$/,
+    /^hi[!~.?]*$/i,
+    /^hey[!~.?]*$/i,
+    /^hello[!~.?]*$/i,
+    /^헬로(우)?[!~.?]*$/,
+  ];
+  return greetingPatterns.some((re) => re.test(trimmed));
+}
+
 // 로컬 기준 오늘 날짜를 "YYYY-MM-DD"로 반환 (UTC 변환 없이, 자정 근처 오차 방지)
 function todayKey() {
   const d = new Date();
@@ -1464,6 +1481,14 @@ export default function RecipeKeeper() {
     const historyForApi = chatMessages.filter((m) => m.role === "user" || m.role === "assistant");
     setChatMessages((prev) => [...prev, { role: "user", content: question }]);
     setChatInput("");
+
+    // 단순 인사말이면 AI 호출·하루 횟수 차감 없이 미리 정해둔 인사말로 바로 응답
+    if (isSimpleGreeting(question)) {
+      const reply = COOKIE_GREETINGS[Math.floor(Math.random() * COOKIE_GREETINGS.length)];
+      setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      return;
+    }
+
     setChatSending(true);
 
     try {
