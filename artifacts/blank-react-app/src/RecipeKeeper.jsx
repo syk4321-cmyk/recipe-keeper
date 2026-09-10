@@ -445,6 +445,40 @@ function Chip({ active, children, onClick, style }) {
   );
 }
 
+// 재료명으로 쿠팡/마켓컬리 검색 결과 페이지 URL을 만들어요.
+// 나중에 파트너스 딥링크로 바꿀 때는 이 두 함수만 수정하면 돼요.
+function getCoupangSearchUrl(query) {
+  return `https://www.coupang.com/np/search?q=${encodeURIComponent(query)}`;
+}
+
+function getKurlySearchUrl(query) {
+  return `https://www.kurly.com/search?sword=${encodeURIComponent(query)}`;
+}
+
+function openInNewTab(url) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+// 쿠팡/컬리 버튼의 색상·라벨을 한곳에 모아둬요. 지금은 로고 없이 임시 텍스트 배지이고,
+// 나중에 공식 로고 이미지로 바꿀 때는 이 컴포넌트 안쪽만 고치면 돼요.
+const MARKET_BADGES = {
+  coupang: { label: "쿠팡", background: "#1C6DD0" },
+  kurly: { label: "컬리", background: "#7C3AED" },
+};
+
+function MarketBadge({ merchant, onClick }) {
+  const { label, background } = MARKET_BADGES[merchant];
+  return (
+    <button
+      onClick={onClick}
+      className="px-3 py-1.5 rounded-lg text-xs font-bold shrink-0"
+      style={{ backgroundColor: background, color: "#fff" }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function ReceiptRow({ name, amount, mono = true }) {
   return (
     <div className="flex items-baseline gap-2 py-1.5">
@@ -646,6 +680,9 @@ export default function RecipeKeeper() {
   const [categories, setCategories] = useState(CATEGORIES);
   const [activeCategory, setActiveCategory] = useState("전체");
   const [shoppingList, setShoppingList] = useState([]);
+  // 장바구니 화면에서 쿠팡/컬리로 검색해서 구매할 재료 선택 (구매완료 체크와는 별개)
+  const [purchaseSelected, setPurchaseSelected] = useState([]);
+  const [showPurchaseSheet, setShowPurchaseSheet] = useState(false);
   const [cartAddedFlash, setCartAddedFlash] = useState(false);
   const [shareFlash, setShareFlash] = useState(false);
   const [manualItemName, setManualItemName] = useState("");
@@ -1624,7 +1661,12 @@ export default function RecipeKeeper() {
     });
   }
 
+  function togglePurchaseSelect(id) {
+    setPurchaseSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
+  const selectedPurchaseItems = shoppingList.filter((item) => purchaseSelected.includes(item.id));
 
   const visibleRecipes = recipes.filter((r) => {
     const matchesFolder = activeFolder === "전체" || r.folder === activeFolder;
@@ -2678,6 +2720,14 @@ export default function RecipeKeeper() {
                     <div key={item.id} className="flex items-center gap-2 py-2" style={{ borderBottom: `1px dashed ${C.line}` }}>
                       <input
                         type="checkbox"
+                        aria-label="구매 목록에 추가"
+                        checked={purchaseSelected.includes(item.id)}
+                        onChange={() => togglePurchaseSelect(item.id)}
+                        style={{ accentColor: C.ember }}
+                      />
+                      <input
+                        type="checkbox"
+                        aria-label="구매 완료 체크"
                         checked={item.checked}
                         onChange={(e) =>
                           setShoppingList((prev) => prev.map((i) => (i.id === item.id ? { ...i, checked: e.target.checked } : i)))
@@ -2689,7 +2739,13 @@ export default function RecipeKeeper() {
                         </div>
                         <span style={{ color: C.muted, fontSize: 13 }}>{(item.recipeTitles || []).join(", ")}</span>
                       </div>
-                      <button onClick={() => setShoppingList((prev) => prev.filter((i) => i.id !== item.id))} style={{ color: C.muted }}>
+                      <button
+                        onClick={() => {
+                          setShoppingList((prev) => prev.filter((i) => i.id !== item.id));
+                          setPurchaseSelected((prev) => prev.filter((id) => id !== item.id));
+                        }}
+                        style={{ color: C.muted }}
+                      >
                         <X size={16} />
                       </button>
                     </div>
@@ -2697,6 +2753,21 @@ export default function RecipeKeeper() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- 선택한 재료 구매하기 버튼 (쿠팡/컬리 연결) ---------- */}
+      {view === "shopping" && purchaseSelected.length > 0 && (
+        <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 200 }}>
+          <div className="px-5">
+            <button
+              onClick={() => setShowPurchaseSheet(true)}
+              className="pointer-events-auto w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2"
+              style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
+            >
+              <ShoppingCart size={18} /> 선택한 {purchaseSelected.length}개 재료 구매하기
+            </button>
           </div>
         </div>
       )}
@@ -3412,6 +3483,49 @@ export default function RecipeKeeper() {
               >
                 <Send size={18} />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- 선택한 재료 구매 시트 (쿠팡/컬리 검색 연결) ---------- */}
+      {showPurchaseSheet && (
+        <div
+          className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20"
+          style={{ backgroundColor: "#00000099" }}
+          onClick={() => setShowPurchaseSheet(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full rounded-t-3xl p-5 flex flex-col"
+            style={{ backgroundColor: C.ink, border: `1px solid ${C.line}`, maxHeight: "70vh" }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
+                선택한 재료 구매하기
+              </h3>
+              <button onClick={() => setShowPurchaseSheet(false)}><X size={22} color={C.muted} /></button>
+            </div>
+            <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+              쿠팡 또는 컬리에서 재료명으로 검색 결과를 열어드려요. 가격·재고는 각 쇼핑몰에서 확인해주세요.
+            </p>
+            <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
+              {selectedPurchaseItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-2 p-3 rounded-xl"
+                  style={{ backgroundColor: C.card, border: `1px solid ${C.line}` }}
+                >
+                  <span
+                    className="flex-1 min-w-0 truncate"
+                    style={{ color: C.paper, fontFamily: "'Gowun Dodum', sans-serif" }}
+                  >
+                    {item.name}
+                  </span>
+                  <MarketBadge merchant="coupang" onClick={() => openInNewTab(getCoupangSearchUrl(item.name))} />
+                  <MarketBadge merchant="kurly" onClick={() => openInNewTab(getKurlySearchUrl(item.name))} />
+                </div>
+              ))}
             </div>
           </div>
         </div>
