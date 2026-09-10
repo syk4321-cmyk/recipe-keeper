@@ -286,20 +286,6 @@ function useReorderList(onReorder) {
   return { itemRefs, dragActiveIndex, dragOffsetY, handleDragStart };
 }
 
-// AI 채팅 + 재료 구매하기 플로팅 버튼 행은 fixed 포지션이라 화면(뷰포트) 기준으로
-// 항상 같은 높이에 떠 있어요. 스크롤 위치마다 매 줄의 좌표를 계산해서 겹침을
-// 판정하는 방식은 "버튼을 이미 지나간 줄까지 계속 gutter가 남는" 버그가 생기기
-// 쉬워서, 대신 카드의 "마지막 몇 줄"에는 스크롤 위치와 무관하게 항상 고정적으로
-// 여백을 둬요 — 화면 하단 쪽에 떠 있는 버튼과 실제로 겹칠 수 있는 줄은 결국
-// 카드의 끝부분(다음 섹션으로 넘어가기 직전)뿐이기 때문이에요.
-const FAB_ROW_GUTTER = 128; // MarketBadgeStackButton(40) + gap(8) + 쿠키 버튼(56) + 여유
-const FAB_ROW_PROTECTED_ROWS = 2; // 버튼과 겹칠 수 있는, 카드 맨 끝의 고정 보호 줄 수
-
-// ids 배열의 마지막 n개를 Set으로 돌려줘요 (버튼과 겹칠 수 있는 "마지막 줄들" 판정용).
-function lastRowIds(ids, n) {
-  return new Set(ids.slice(Math.max(0, ids.length - n)));
-}
-
 function emptyDraft() {
   return {
     title: "",
@@ -1748,18 +1734,6 @@ export default function RecipeKeeper() {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
 
-  // 재료/장바구니 카드의 마지막 몇 줄에만 AI 채팅+재료 구매하기 버튼과 겹치지 않도록
-  // 고정 여백을 둬요(스크롤 위치와 무관). 렌더링 순서(재료 -> 양념)를 그대로 따라야
-  // 실제로 카드 맨 끝에 오는 줄이 정확히 잡혀요.
-  const orderedIngredientIds = selectedRecipe
-    ? [
-        ...selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => ing.id),
-        ...selectedRecipe.ingredients.filter((ing) => ing.isSauce).map((ing) => ing.id),
-      ]
-    : [];
-  const protectedIngredientIds = lastRowIds(orderedIngredientIds, FAB_ROW_PROTECTED_ROWS);
-  const protectedShoppingIds = lastRowIds(shoppingList.map((item) => item.id), FAB_ROW_PROTECTED_ROWS);
-
   // "구매할 재료 고르기" 시트를 연다 — 장바구니/레시피 상세 두 경로가 이 한 시트를 공유한다.
   // items는 [{id, name, amount}] 형태로, 시트를 열 때마다 선택 상태를 새로 초기화한다.
   function openPurchasePicker(items) {
@@ -2616,10 +2590,7 @@ export default function RecipeKeeper() {
                       checked={!!checkedIngredients[ing.id]}
                       onChange={(e) => setCheckedIngredients((prev) => ({ ...prev, [ing.id]: e.target.checked }))}
                     />
-                    <div
-                      className="flex-1 min-w-0"
-                      style={{ paddingRight: protectedIngredientIds.has(ing.id) ? FAB_ROW_GUTTER : undefined }}
-                    >
+                    <div className="flex-1 min-w-0">
                       <ReceiptRow
                         name={ing.name}
                         amount={scaleAmount(ing.amount, viewServings / (selectedRecipe.servings || 2))}
@@ -2642,10 +2613,7 @@ export default function RecipeKeeper() {
                           checked={!!checkedIngredients[ing.id]}
                           onChange={(e) => setCheckedIngredients((prev) => ({ ...prev, [ing.id]: e.target.checked }))}
                         />
-                        <div
-                          className="flex-1 min-w-0"
-                          style={{ paddingRight: protectedIngredientIds.has(ing.id) ? FAB_ROW_GUTTER : undefined }}
-                        >
+                        <div className="flex-1 min-w-0">
                           <ReceiptRow
                             name={ing.name}
                             amount={scaleAmount(ing.amount, viewServings / (selectedRecipe.servings || 2))}
@@ -2864,10 +2832,7 @@ export default function RecipeKeeper() {
                           setShoppingList((prev) => prev.map((i) => (i.id === item.id ? { ...i, checked: e.target.checked } : i)))
                         }
                       />
-                      <div
-                        className="flex-1 min-w-0"
-                        style={{ paddingRight: protectedShoppingIds.has(item.id) ? FAB_ROW_GUTTER : undefined }}
-                      >
+                      <div className="flex-1 min-w-0">
                         <div style={{ textDecoration: item.checked ? "line-through" : "none", opacity: item.checked ? 0.5 : 1 }}>
                           <ReceiptRow name={item.name} amount={item.amount} />
                         </div>
