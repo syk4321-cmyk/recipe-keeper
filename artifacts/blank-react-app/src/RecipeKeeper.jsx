@@ -682,7 +682,10 @@ export default function RecipeKeeper() {
   const [shoppingList, setShoppingList] = useState([]);
   // 장바구니 화면에서 쿠팡/컬리로 검색해서 구매할 재료 선택 (구매완료 체크와는 별개)
   const [purchaseSelected, setPurchaseSelected] = useState([]);
+  // 구매 시트(쿠팡/컬리 배지 목록)에 실제로 표시할 재료 — 장바구니 선택과 레시피 상세
+  // 선택 두 경로 모두 여기에 담아서 같은 시트를 공유해요.
   const [showPurchaseSheet, setShowPurchaseSheet] = useState(false);
+  const [purchaseSheetItems, setPurchaseSheetItems] = useState([]);
   const [cartAddedFlash, setCartAddedFlash] = useState(false);
   const [shareFlash, setShareFlash] = useState(false);
   const [manualItemName, setManualItemName] = useState("");
@@ -947,6 +950,9 @@ export default function RecipeKeeper() {
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [checkedIngredients, setCheckedIngredients] = useState({});
+  // 레시피 상세의 "재료 구매하기" 시트 전용 선택 상태 — 장바구니 담기/조리 중 체크와는 완전히 별개
+  const [ingredientPurchaseSelected, setIngredientPurchaseSelected] = useState([]);
+  const [showIngredientPurchaseSheet, setShowIngredientPurchaseSheet] = useState(false);
   const [viewServings, setViewServings] = useState(2);
   const [ready, setReady] = useState(false);
   const fileInputRef = useRef(null);
@@ -1666,7 +1672,27 @@ export default function RecipeKeeper() {
   }
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
-  const selectedPurchaseItems = shoppingList.filter((item) => purchaseSelected.includes(item.id));
+
+  // 장바구니에서 선택한 재료로 구매 시트를 열어요. 구매 시트 자체는 장바구니/레시피 상세
+  // 두 경로가 공유하므로, 여기서는 표시할 재료 목록(purchaseSheetItems)만 채워넣어요.
+  function openPurchaseSheetForShoppingList() {
+    setPurchaseSheetItems(
+      shoppingList.filter((item) => purchaseSelected.includes(item.id)).map((item) => ({ id: item.id, name: item.name }))
+    );
+    setShowPurchaseSheet(true);
+  }
+
+  // 레시피 상세에서 고른 재료로 같은 구매 시트를 열어요.
+  function openPurchaseSheetForIngredients() {
+    if (!selectedRecipe) return;
+    setPurchaseSheetItems(
+      selectedRecipe.ingredients
+        .filter((ing) => ingredientPurchaseSelected.includes(ing.id))
+        .map((ing) => ({ id: ing.id, name: ing.name }))
+    );
+    setShowIngredientPurchaseSheet(false);
+    setShowPurchaseSheet(true);
+  }
 
   const visibleRecipes = recipes.filter((r) => {
     const matchesFolder = activeFolder === "전체" || r.folder === activeFolder;
@@ -2482,7 +2508,7 @@ export default function RecipeKeeper() {
 
               <div
                 className="mt-2 rounded-xl p-3"
-                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, paddingRight: 72 }}
+                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, paddingRight: 176 }}
               >
                 {selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => (
                   <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
@@ -2570,14 +2596,36 @@ export default function RecipeKeeper() {
         </div>
       )}
 
-      {/* ---------- AI 채팅 플로팅 버튼 (재료 영역 우측 하단, 광고 배너/하단 네비 위) ---------- */}
+      {/* ---------- AI 채팅 + 재료 구매하기 플로팅 버튼 (재료 영역 우측 하단, 광고 배너/하단 네비 위) ---------- */}
       {view === "detail" && selectedRecipe && (
         <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 132 }}>
-          <div className="flex justify-end px-5">
+          <div className="flex items-center justify-end gap-2 px-5">
+            {selectedRecipe.ingredients && selectedRecipe.ingredients.length > 0 && (
+              <button
+                onClick={() => {
+                  setIngredientPurchaseSelected([]);
+                  setShowIngredientPurchaseSheet(true);
+                }}
+                className="pointer-events-auto h-10 pl-1.5 pr-3 rounded-full flex items-center gap-1.5 text-xs font-bold shrink-0"
+                style={{ backgroundColor: C.card, color: C.paper, border: `1px solid ${C.line}`, boxShadow: "0 4px 14px #00000055" }}
+              >
+                <span className="relative shrink-0" style={{ width: 24, height: 18 }}>
+                  <span
+                    className="absolute rounded-full"
+                    style={{ left: 0, top: 0, width: 18, height: 18, backgroundColor: MARKET_BADGES.coupang.background, border: `2px solid ${C.card}` }}
+                  />
+                  <span
+                    className="absolute rounded-full"
+                    style={{ left: 8, top: 0, width: 18, height: 18, backgroundColor: MARKET_BADGES.kurly.background, border: `2px solid ${C.card}` }}
+                  />
+                </span>
+                재료 구매
+              </button>
+            )}
             <button
               onClick={() => openChatSheet("recipe")}
               aria-label="쿠키에게 물어보기"
-              className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden"
+              className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden shrink-0"
               style={{ boxShadow: "0 4px 14px #00000055" }}
             >
               <img src="/icons/cookie-icon.png" alt="쿠키" className="w-full h-full object-cover" />
@@ -2762,7 +2810,7 @@ export default function RecipeKeeper() {
         <div className="fixed left-0 right-0 max-w-md mx-auto pointer-events-none z-10" style={{ bottom: 200 }}>
           <div className="px-5">
             <button
-              onClick={() => setShowPurchaseSheet(true)}
+              onClick={openPurchaseSheetForShoppingList}
               className="pointer-events-auto w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2"
               style={{ backgroundColor: C.ember, color: C.ink, boxShadow: "0 4px 14px #00000055" }}
             >
@@ -3488,6 +3536,75 @@ export default function RecipeKeeper() {
         </div>
       )}
 
+      {/* ---------- 레시피 상세 "재료 구매하기" 선택 시트 ---------- */}
+      {showIngredientPurchaseSheet && selectedRecipe && (
+        <div
+          className="fixed inset-0 flex items-end justify-center max-w-md mx-auto z-20"
+          style={{ backgroundColor: "#00000099" }}
+          onClick={() => setShowIngredientPurchaseSheet(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full rounded-t-3xl p-5 flex flex-col"
+            style={{ backgroundColor: C.ink, border: `1px solid ${C.line}`, maxHeight: "80vh" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
+                구매할 재료 고르기
+              </h3>
+              <button onClick={() => setShowIngredientPurchaseSheet(false)}><X size={22} color={C.muted} /></button>
+            </div>
+
+            <label className="flex items-center gap-2 py-2 mb-1 cursor-pointer" style={{ borderBottom: `1px solid ${C.line}` }}>
+              <input
+                type="checkbox"
+                checked={selectedRecipe.ingredients.length > 0 && ingredientPurchaseSelected.length === selectedRecipe.ingredients.length}
+                onChange={(e) =>
+                  setIngredientPurchaseSelected(e.target.checked ? selectedRecipe.ingredients.map((ing) => ing.id) : [])
+                }
+              />
+              <span style={{ color: C.paper, fontWeight: 700 }}>전부 고르기</span>
+            </label>
+
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {selectedRecipe.ingredients.map((ing) => (
+                <label
+                  key={ing.id}
+                  className="flex items-center gap-2 py-1.5 cursor-pointer"
+                  style={{ borderBottom: `1px dashed ${C.line}` }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={ingredientPurchaseSelected.includes(ing.id)}
+                    onChange={() =>
+                      setIngredientPurchaseSelected((prev) =>
+                        prev.includes(ing.id) ? prev.filter((id) => id !== ing.id) : [...prev, ing.id]
+                      )
+                    }
+                  />
+                  <div className="flex-1 min-w-0">
+                    <ReceiptRow name={ing.name} amount={scaleAmount(ing.amount, viewServings / (selectedRecipe.servings || 2))} />
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <button
+              onClick={openPurchaseSheetForIngredients}
+              disabled={ingredientPurchaseSelected.length === 0}
+              className="mt-3 w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shrink-0"
+              style={{
+                backgroundColor: C.ember,
+                color: C.ink,
+                opacity: ingredientPurchaseSelected.length === 0 ? 0.5 : 1,
+              }}
+            >
+              <ShoppingCart size={18} /> 선택한 {ingredientPurchaseSelected.length}개 재료 구매하기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---------- 선택한 재료 구매 시트 (쿠팡/컬리 검색 연결) ---------- */}
       {showPurchaseSheet && (
         <div
@@ -3510,7 +3627,7 @@ export default function RecipeKeeper() {
               쿠팡 또는 컬리에서 재료명으로 검색 결과를 열어드려요. 가격·재고는 각 쇼핑몰에서 확인해주세요.
             </p>
             <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
-              {selectedPurchaseItems.map((item) => (
+              {purchaseSheetItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center gap-2 p-3 rounded-xl"
