@@ -29,6 +29,13 @@ const CATEGORIES = ["한식", "중식", "일식", "양식", "디저트", "기타
 // 앱 전체를 통틀어 하루에 AI 채팅으로 물어볼 수 있는 최대 횟수 (레시피별이 아니라 유저당 1개로 통합 집계)
 const CHAT_DAILY_LIMIT = 10;
 
+// 쿠키 채팅 시트를 열 때마다 이 중 하나를 랜덤으로 보여주는 빈 상태 인사말 (레시피/장바구니 공통)
+const COOKIE_GREETINGS = [
+  "안녕하세요!\n저는 요리의 만능열쇠 쿠키(cook-key)예요\n편하게 쿠키라고 불러주세요\n어떤 도움이 필요하세요?",
+  "안녕하세요, 쿠키(cook-key)예요 🔑\n막힌 요리, 제가 열어드릴게요\n재료든 조리법이든 편하게 물어보세요!",
+  "안녕하세요!\n요리하다 궁금한 거 생기면 저를 찾아주세요\n쿠키(cook-key)가 도와드릴게요 :)",
+];
+
 // 로컬 기준 오늘 날짜를 "YYYY-MM-DD"로 반환 (UTC 변환 없이, 자정 근처 오차 방지)
 function todayKey() {
   const d = new Date();
@@ -881,6 +888,7 @@ export default function RecipeKeeper() {
   const [chatSending, setChatSending] = useState(false);
   const [chatCount, setChatCount] = useState(0);
   const [chatCountLoading, setChatCountLoading] = useState(false);
+  const [chatGreeting, setChatGreeting] = useState(COOKIE_GREETINGS[0]);
   const chatScrollRef = useRef(null);
   // showChatSheet가 이 아래에서 선언되므로, 위쪽 ref 동기화 블록이 아니라 선언 직후에 동기화해요.
   showChatSheetRef.current = showChatSheet;
@@ -1433,6 +1441,7 @@ export default function RecipeKeeper() {
   // AI 채팅 시트를 열면서, 오늘 남은 질문 횟수를 Firestore에서 불러와요.
   async function openChatSheet(contextType) {
     setChatContextType(contextType);
+    setChatGreeting(COOKIE_GREETINGS[Math.floor(Math.random() * COOKIE_GREETINGS.length)]);
     setShowChatSheet(true);
     if (!user) return;
     setChatCountLoading(true);
@@ -3291,10 +3300,8 @@ export default function RecipeKeeper() {
 
             <div ref={chatScrollRef} className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
               {chatMessages.length === 0 && (
-                <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13 }}>
-                  {chatContextType === "cart"
-                    ? "안녕하세요! 저는 쿠키예요 🍪 지금 장바구니에 담긴 재료로 궁금한 걸 물어보세요."
-                    : "안녕하세요! 저는 쿠키예요 🍪 이 레시피의 재료나 조리법에 대해 궁금한 걸 물어보세요."}
+                <p className="text-center mt-6" style={{ color: C.muted, fontSize: 13, whiteSpace: "pre-wrap" }}>
+                  {chatGreeting}
                 </p>
               )}
               {chatMessages.map((m, idx) => (
