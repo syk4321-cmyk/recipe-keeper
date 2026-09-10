@@ -1742,14 +1742,16 @@ export default function RecipeKeeper() {
     openPurchasePicker(shoppingList.map((item) => ({ id: item.id, name: item.name, amount: item.amount })));
   }
 
-  // 고른 재료로 공용 구매 시트(쿠팡/컬리 배지 목록)를 연다.
+  // 고른 재료로 공용 구매 시트(쿠팡/컬리 배지 목록)를 연다. 재료 고르기 시트는 일부러
+  // 닫지 않고 그 아래 그대로 열어둔다 — 구매 시트가 뒤로가기 우선순위 체인에서
+  // 재료 고르기 시트보다 먼저 걸리므로(showPurchaseSheetRef가 showPurchasePickerSheetRef
+  // 보다 앞), 뒤로가기를 누르면 구매 시트만 닫히고 재료 고르기 시트로 돌아간다.
   function confirmPurchasePickerSelection() {
     setPurchaseSheetItems(
       purchasePickerItems
         .filter((item) => purchasePickerSelected.includes(item.id))
         .map((item) => ({ id: item.id, name: item.name }))
     );
-    setShowPurchasePickerSheet(false);
     setShowPurchaseSheet(true);
   }
 
