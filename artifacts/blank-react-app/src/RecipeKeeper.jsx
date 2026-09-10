@@ -4,7 +4,7 @@ import {
   Loader2, Trash2, Search, FolderPlus, PencilLine, GripVertical,
   List, LayoutGrid, Settings2, ChefHat, Play, Pause, RotateCcw, ChevronRight,
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
-  Mail, FileText, ShieldCheck, Send, KeyRound,
+  Mail, FileText, ShieldCheck, Send,
 } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -519,18 +519,17 @@ function MarketBadgeStackButton({ onClick }) {
   );
 }
 
-// 쿠키 AI 채팅 트리거 버튼 — 원형 배경은 이미지가 아니라 앱 브랜드 컬러 토큰(C.ember)을
-// 코드로 직접 칠해서, 나중에 브랜드 컬러가 바뀌어도 이미지 재작업 없이 자동으로
-// 맞춰지도록 한다. 열쇠 아이콘도 lucide-react의 KeyRound를 그대로 사용한다.
+// 쿠키 AI 채팅 트리거 버튼 — public/icons/cookie-icon.png가 이미 원형 배경을 포함하고
+// 있어서, 버튼은 그 이미지를 rounded-full로 자른 원 안에 그대로 채워 넣기만 한다.
 function CookieAiButton({ onClick, ariaLabel }) {
   return (
     <button
       onClick={onClick}
       aria-label={ariaLabel}
-      className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center shrink-0"
-      style={{ backgroundColor: C.ember, boxShadow: "0 4px 14px #00000055" }}
+      className="pointer-events-auto w-14 h-14 rounded-full overflow-hidden shrink-0"
+      style={{ boxShadow: "0 4px 14px #00000055" }}
     >
-      <KeyRound size={28} color={C.card} strokeWidth={2.25} />
+      <img src="/icons/cookie-icon.png" alt="쿠키" className="w-full h-full object-cover" />
     </button>
   );
 }
