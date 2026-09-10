@@ -284,6 +284,44 @@ function useReorderList(onReorder) {
   return { itemRefs, dragActiveIndex, dragOffsetY, handleDragStart };
 }
 
+// AI 채팅 + 재료 구매하기 플로팅 버튼 행(fixed, bottom: FAB_ROW_BOTTOM, 높이 FAB_ROW_HEIGHT)은
+// 화면에 항상 같은 위치로 떠 있어요. 그 자리에 지금 스크롤된 카드의 끝부분이 겹칠 때만
+// 카드 오른쪽에 여백을 reserve해서, 겹치지 않을 때는 재료명-수량 사이 간격을 최대로 쓰고
+// 겹칠 때만 수량 텍스트가 버튼에 가려지지 않도록 해요.
+const FAB_ROW_BOTTOM = 132;
+const FAB_ROW_HEIGHT = 56;
+const FAB_ROW_GUTTER = 128; // MarketBadgeStackButton(40) + gap(8) + 쿠키 버튼(56) + 여유
+
+function useFabOverlapGutter(active, deps = []) {
+  const ref = useRef(null);
+  const [needsGutter, setNeedsGutter] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setNeedsGutter(false);
+      return;
+    }
+    function check() {
+      const el = ref.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const bandTop = window.innerHeight - FAB_ROW_BOTTOM - FAB_ROW_HEIGHT;
+      const bandBottom = window.innerHeight - FAB_ROW_BOTTOM;
+      setNeedsGutter(rect.bottom > bandTop && rect.top < bandBottom);
+    }
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, ...deps]);
+
+  return [ref, needsGutter];
+}
+
 function emptyDraft() {
   return {
     title: "",
@@ -1719,6 +1757,14 @@ export default function RecipeKeeper() {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
 
+  // 재료/장바구니 카드가 지금 스크롤돼서 AI 채팅+재료 구매하기 버튼 행과 겹칠 때만
+  // 카드 오른쪽에 여백을 둬요 — 평소엔 재료명-수량 사이 간격을 최대로 씁니다.
+  const [ingredientCardRef, ingredientCardNeedsGutter] = useFabOverlapGutter(view === "detail", [
+    selectedRecipe && selectedRecipe.ingredients ? selectedRecipe.ingredients.length : 0,
+    viewServings,
+  ]);
+  const [shoppingCardRef, shoppingCardNeedsGutter] = useFabOverlapGutter(view === "shopping", [shoppingList.length]);
+
   // "구매할 재료 고르기" 시트를 연다 — 장바구니/레시피 상세 두 경로가 이 한 시트를 공유한다.
   // items는 [{id, name, amount}] 형태로, 시트를 열 때마다 선택 상태를 새로 초기화한다.
   function openPurchasePicker(items) {
@@ -2568,8 +2614,13 @@ export default function RecipeKeeper() {
               </div>
 
               <div
+                ref={ingredientCardRef}
                 className="mt-2 rounded-xl p-3"
-                style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, paddingRight: 128 }}
+                style={{
+                  backgroundColor: C.card,
+                  border: `1px solid ${C.line}`,
+                  paddingRight: ingredientCardNeedsGutter ? FAB_ROW_GUTTER : undefined,
+                }}
               >
                 {selectedRecipe.ingredients.filter((ing) => !ing.isSauce).map((ing) => (
                   <label key={ing.id} className="flex items-center gap-2 py-1 cursor-pointer">
@@ -2805,7 +2856,15 @@ export default function RecipeKeeper() {
                 <p style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>
                   이름이 같은 재료는 "자동정리"로 합쳐져요. 이름 수정이나 삭제는 "담은 항목 정리"에서 할 수 있어요.
                 </p>
-                <div className="rounded-xl p-3" style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, paddingRight: 128 }}>
+                <div
+                  ref={shoppingCardRef}
+                  className="rounded-xl p-3"
+                  style={{
+                    backgroundColor: C.card,
+                    border: `1px solid ${C.line}`,
+                    paddingRight: shoppingCardNeedsGutter ? FAB_ROW_GUTTER : undefined,
+                  }}
+                >
                   {shoppingList.map((item) => (
                     <div key={item.id} className="flex items-center gap-2 py-2" style={{ borderBottom: `1px dashed ${C.line}` }}>
                       <input
