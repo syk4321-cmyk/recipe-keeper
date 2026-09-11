@@ -7,23 +7,20 @@
   NODE_VERSION = "20"
   BASE_PATH = "/"
   PORT = "18404"
-  # Firebase web app config (cookmark-web). Safe to expose client-side by
-  # design (it's not a secret, just a project identifier) — Firebase access
-  # control is enforced by Firestore/Auth rules, not by hiding this value.
-  VITE_FIREBASE_API_KEY = "AIzaSyCChmKg56egvso3PCQqY28ZgeRo9YXq0x0"
-  VITE_FIREBASE_AUTH_DOMAIN = "cookmark-3c4f3.firebaseapp.com"
-  VITE_FIREBASE_PROJECT_ID = "cookmark-3c4f3"
-  VITE_FIREBASE_STORAGE_BUCKET = "cookmark-3c4f3.firebasestorage.app"
-  VITE_FIREBASE_MESSAGING_SENDER_ID = "101834924948"
-  VITE_FIREBASE_APP_ID = "1:101834924948:web:94dd959825222712912581"
-  VITE_FIREBASE_MEASUREMENT_ID = "G-74EL20QVF2"
+  # VITE_FIREBASE_API_KEY / VITE_FIREBASE_AUTH_DOMAIN / VITE_FIREBASE_PROJECT_ID /
+  # VITE_FIREBASE_STORAGE_BUCKET / VITE_FIREBASE_MESSAGING_SENDER_ID /
+  # VITE_FIREBASE_APP_ID / VITE_FIREBASE_MEASUREMENT_ID are set directly in
+  # Netlify Site configuration > Environment variables (not here, to keep
+  # Netlify's secrets scanner from flagging the literal value in this
+  # committed file — see SECRETS_SCAN_OMIT_KEYS below for why the values
+  # themselves are still fine to end up in the deployed JS bundle).
   # google-services.json's (Android) Firebase API key is likewise safe to
   # expose, but it still trips Netlify's secrets scanner since the whole repo
   # checkout gets scanned, not just the publish directory.
   SECRETS_SCAN_OMIT_PATHS = "artifacts/blank-react-app/android/app/google-services.json"
-  # The VITE_FIREBASE_* values above are intentionally baked into the client
-  # JS bundle (that's how Firebase web apps work) — tell the scanner not to
-  # flag them as leaked secrets.
+  # The VITE_FIREBASE_* values (set in the Netlify dashboard) are intentionally
+  # baked into the client JS bundle (that's how Firebase web apps work) — tell
+  # the scanner not to flag them as leaked secrets.
   SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID,VITE_FIREBASE_MEASUREMENT_ID"
 
 [[redirects]]
