@@ -502,7 +502,7 @@ async function openInNewTab(url) {
 // 쿠팡/컬리 버튼의 색상·라벨을 한곳에 모아둬요. 지금은 로고 없이 임시 텍스트 배지이고,
 // 나중에 공식 로고 이미지로 바꿀 때는 이 컴포넌트 안쪽만 고치면 돼요.
 const MARKET_BADGES = {
-  coupang: { label: "쿠팡", background: "#1C6DD0" },
+  coupang: { label: "쿠팡", background: "#E5231B" },
   kurly: { label: "컬리", background: "#7C3AED" },
 };
 
