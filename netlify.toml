@@ -7,6 +7,10 @@
   NODE_VERSION = "20"
   BASE_PATH = "/"
   PORT = "18404"
+  # google-services.json's Firebase API key is safe to expose client-side by
+  # design (it's not a secret, just a project identifier), but it still trips
+  # Netlify's secrets scanner since the whole repo checkout gets scanned.
+  SECRETS_SCAN_OMIT_PATHS = "artifacts/blank-react-app/android/app/google-services.json"
 
 [[redirects]]
   from = "/api/recipe/analyze"
