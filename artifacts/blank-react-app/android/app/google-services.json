@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "101834924948",
+    "project_id": "cookmark-3c4f3",
+    "storage_bucket": "cookmark-3c4f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:101834924948:android:bc20598ea6587fd8912581",
+        "android_client_info": {
+          "package_name": "sym.cookmark.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "101834924948-a0fcr3dnkfl8osvd3sldur2f1ep65876.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjw9ykTvX2M2n-P2webcBugfxLQg7J6mo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "101834924948-a0fcr3dnkfl8osvd3sldur2f1ep65876.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
