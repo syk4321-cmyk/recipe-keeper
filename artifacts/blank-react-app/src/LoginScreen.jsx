@@ -84,6 +84,14 @@ export default function LoginScreen() {
       if (isUserCancelledGoogleLogin(err)) {
         // 사용자가 계정 선택을 취소한 경우 — 에러 메시지를 띄우지 않음
       } else {
+        // TEMP DEBUG (원인 파악되면 제거할 것): 실제 에러 코드/메시지를 화면에 노출
+        console.error('[Google Login Error]', err);
+        alert(
+          `[DEBUG] code: ${err?.code ?? '(none)'}\n` +
+          `message: ${err?.message ?? '(none)'}\n` +
+          `name: ${err?.name ?? '(none)'}\n\n` +
+          `raw: ${safeStringifyError(err)}`
+        );
         setError(mapAuthError(err.code));
       }
     } finally {
@@ -322,6 +330,19 @@ const inputStyle = {
   color: '#4A2B40',
   outline: 'none',
 };
+
+// TEMP DEBUG (원인 파악되면 제거할 것): 에러 객체를 최대한 읽을 수 있게 문자열화
+function safeStringifyError(err) {
+  try {
+    const plain = {};
+    for (const key of Object.getOwnPropertyNames(err || {})) {
+      plain[key] = err[key];
+    }
+    return JSON.stringify(plain, null, 2);
+  } catch {
+    return String(err);
+  }
+}
 
 function isUserCancelledGoogleLogin(err) {
   if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
