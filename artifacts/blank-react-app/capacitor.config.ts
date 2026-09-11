@@ -23,6 +23,14 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
+    // 네이티브 구글 로그인(WebView 팝업 대신 OS 자체 계정 선택 UI 사용).
+    // skipNativeAuth: true로 두면 네이티브 SDK는 구글 로그인 자격 증명(ID 토큰)만
+    // 가져오고, 실제 Firebase 로그인 세션은 기존처럼 firebase/auth JS SDK(auth 객체)가
+    // 그대로 소유한다 — 웹/앱 두 플랫폼에서 auth 상태 관리 로직을 하나로 유지하기 위함.
+    FirebaseAuthentication: {
+      skipNativeAuth: true,
+      providers: ['google.com'],
+    },
   },
 };
 

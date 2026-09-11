@@ -3,12 +3,15 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
   sendPasswordResetEmail,
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { auth } from './firebase';
 
 // 쿡마크 로고 (흰 배경 버전, base64)
@@ -63,10 +66,26 @@ export default function LoginScreen() {
         auth,
         autoLogin ? browserLocalPersistence : browserSessionPersistence
       );
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+
+      if (Capacitor.isNativePlatform()) {
+        // 안드로이드 앱: WebView 팝업 대신 OS 네이티브 구글 계정 선택 UI 사용.
+        // (구글 정책상 WebView 안에서의 signInWithPopup/Redirect는 차단됨)
+        const { credential } = await FirebaseAuthentication.signInWithGoogle();
+        if (!credential?.idToken) {
+          throw new Error('구글 로그인 토큰을 가져오지 못했어요.');
+        }
+        const authCredential = GoogleAuthProvider.credential(credential.idToken);
+        await signInWithCredential(auth, authCredential);
+      } else {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      }
     } catch (err) {
-      setError(mapAuthError(err.code));
+      if (isUserCancelledGoogleLogin(err)) {
+        // 사용자가 계정 선택을 취소한 경우 — 에러 메시지를 띄우지 않음
+      } else {
+        setError(mapAuthError(err.code));
+      }
     } finally {
       setLoading(false);
     }
@@ -303,6 +322,14 @@ const inputStyle = {
   color: '#4A2B40',
   outline: 'none',
 };
+
+function isUserCancelledGoogleLogin(err) {
+  if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+    return true;
+  }
+  // 네이티브 플러그인은 표준 firebase auth 에러 코드 없이 취소 메시지만 던짐
+  return /cancel/i.test(String(err?.message || ''));
+}
 
 function mapAuthError(code) {
   switch (code) {
