@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "101834924948-6btkq6lqoj8cvig1c0fb73le1dsam5l1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "sym.cookmark.app",
+            "certificate_hash": "42c8c065f8877c363c874db83320a0cee6348d4a"
+          }
+        },
+        {
           "client_id": "101834924948-a0fcr3dnkfl8osvd3sldur2f1ep65876.apps.googleusercontent.com",
           "client_type": 3
         }
