@@ -7,14 +7,17 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > cookmark-web 에서 확인한 값입니다.
+// 클라이언트에 그대로 노출되는 게 Firebase 설계상 정상이라 값 자체는 비밀이 아니지만,
+// Netlify의 시크릿 스캐너가 빌드 결과물에 박힌 API 키 형태 문자열을 오탐하므로
+// 환경변수로 빼고(.env, netlify.toml) SECRETS_SCAN_OMIT_KEYS로 예외 처리했습니다.
 const firebaseConfig = {
-  apiKey: "AIzaSyCChmKg56egvso3PCQqY28ZgeRo9YXq0x0",
-  authDomain: "cookmark-3c4f3.firebaseapp.com",
-  projectId: "cookmark-3c4f3",
-  storageBucket: "cookmark-3c4f3.firebasestorage.app",
-  messagingSenderId: "101834924948",
-  appId: "1:101834924948:web:94dd959825222712912581",
-  measurementId: "G-74EL20QVF2",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 // Firebase 앱 초기화
