@@ -905,6 +905,18 @@ export default function RecipeKeeper() {
       signOut(auth);
     }
   }
+  // 로그아웃이 실제로 일어나는 두 경로(데이터 포기하고 로그아웃 / 구글 연결 후
+  // 로그아웃) 공통 마무리 — 시트를 열림 상태로 남겨두면, 로그아웃 직후 새로
+  // 게스트로 로그인했을 때 이 시트가 그대로 다시 나타나는 버그가 있었음.
+  function resetGuestLogoutConfirmState() {
+    setShowGuestLogoutConfirm(false);
+    setClosingGuestLogoutConfirm(false);
+    setGuestLinkError("");
+  }
+  function handleContinueGuestLogout() {
+    resetGuestLogoutConfirmState();
+    signOut(auth);
+  }
   function isUserCancelledGoogleLink(err) {
     if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
       return true;
@@ -930,6 +942,7 @@ export default function RecipeKeeper() {
         const provider = new GoogleAuthProvider();
         await linkWithPopup(auth.currentUser, provider);
       }
+      resetGuestLogoutConfirmState();
       await signOut(auth);
     } catch (err) {
       if (isUserCancelledGoogleLink(err)) {
@@ -4131,7 +4144,7 @@ export default function RecipeKeeper() {
                 취소
               </button>
               <button
-                onClick={() => signOut(auth)}
+                onClick={handleContinueGuestLogout}
                 disabled={guestLinkLoading}
                 className="py-2"
                 style={{ background: "none", border: "none", color: C.muted, fontSize: 13 }}
