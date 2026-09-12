@@ -84,6 +84,12 @@ export default function LoginScreen() {
       if (isUserCancelledGoogleLogin(err)) {
         // 사용자가 계정 선택을 취소한 경우 — 에러 메시지를 띄우지 않음
       } else {
+        // TEMP DEBUG (원인 파악 후 반드시 제거할 것): 실제 에러 코드/메시지를
+        // alert로 노출. 일반 사용자 메시지("오류가 발생했어요")로는 원인을
+        // 알 수 없어서 임시로 살려둠.
+        alert(
+          `[DEBUG] Google 로그인 실패\ncode: ${err?.code}\nmessage: ${err?.message}\n${JSON.stringify(err)}`
+        );
         setError(mapAuthError(err.code));
       }
     } finally {
