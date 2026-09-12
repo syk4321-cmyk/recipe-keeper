@@ -1087,6 +1087,18 @@ export default function RecipeKeeper() {
     if (!user) return; // 로그인 확인 전이거나 로그아웃 상태면 아직 불러오지 않음
     setAppStorageUid(user.uid);
     setReady(false);
+    // 계정 전환(로그아웃 후 다른 계정/게스트로 로그인 등) 시, 새 계정에
+    // 저장된 데이터가 없는 항목은 아래에서 조건부로만 채워지기 때문에
+    // 이전 계정의 값이 그대로 남아있을 수 있음 — 불러오기 시작 전에
+    // 먼저 기본값으로 비워서 이전 사용자 데이터가 화면에 섞여 보이지
+    // 않도록 함. (저장된 값이 있으면 아래에서 다시 채워짐)
+    setRecipes([]);
+    setFolders(DEFAULT_FOLDERS);
+    setCategories(CATEGORIES);
+    setCardLayout("list");
+    setVotedIds([]);
+    setShoppingList([]);
+    setRecentSearches([]);
     (async () => {
       try {
         const r = await appStorage.get("recipes", false);
