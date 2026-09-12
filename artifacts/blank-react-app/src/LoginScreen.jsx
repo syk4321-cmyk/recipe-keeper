@@ -78,7 +78,12 @@ export default function LoginScreen() {
       if (Capacitor.isNativePlatform()) {
         // 안드로이드 앱: WebView 팝업 대신 OS 네이티브 구글 계정 선택 UI 사용.
         // (구글 정책상 WebView 안에서의 signInWithPopup/Redirect는 차단됨)
-        const { credential } = await FirebaseAuthentication.signInWithGoogle();
+        // 기본값(Credential Manager, useCredentialManager: true)이
+        // "[16] Account reauth failed"로 실패해서 구식 GoogleSignInClient
+        // 경로(useCredentialManager: false)로 전환해서 씀.
+        const { credential } = await FirebaseAuthentication.signInWithGoogle({
+          useCredentialManager: false,
+        });
         if (!credential?.idToken) {
           throw new Error('구글 로그인 토큰을 가져오지 못했어요.');
         }
