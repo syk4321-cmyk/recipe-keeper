@@ -6,10 +6,17 @@ import {
   Lightbulb, ArrowBigUp, Flame, Sparkles, LogOut, Home, User, Share2, Link2, ArrowLeftRight,
   Mail, FileText, ShieldCheck, Send,
 } from "lucide-react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signOut,
+  linkWithCredential,
+  linkWithPopup,
+  GoogleAuthProvider,
+} from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { auth, db } from "./firebase";
 import LoginScreen from "./LoginScreen";
 
@@ -639,6 +646,7 @@ export default function RecipeKeeper() {
   // 구매 시트(쿠팡/컬리)와 레시피 상세의 재료 선택 시트도 같은 방식으로 뒤로가기 체인에 편입
   const showPurchaseSheetRef = useRef(false);
   const showPurchasePickerSheetRef = useRef(false);
+  const showGuestLogoutConfirmRef = useRef(false);
   // ---- 온보딩 슬라이드 / 코치마크 ----
   const showOnboardingRef = useRef(false);
   const showCoachmarkRef = useRef(false);
@@ -750,6 +758,11 @@ export default function RecipeKeeper() {
         setConfirmDeleteCategory(null);
         return;
       }
+      if (showGuestLogoutConfirmRef.current) {
+        pushBackGuard();
+        closeGuestLogoutConfirm();
+        return;
+      }
       if (viewRef.current === "preview" && !pendingLeaveConfirmedRef.current) {
         // 레시피 작성/수정 화면에서는 뒤로가기를 바로 허용하지 않고 확인부터 받아요.
         pushBackGuard();
@@ -804,10 +817,16 @@ export default function RecipeKeeper() {
   const [showMoveFolder, setShowMoveFolder] = useState(false);
   const [showCategoryManage, setShowCategoryManage] = useState(false);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(null);
+  // 게스트(익명) 계정이 로그아웃하면 데이터가 영구 삭제되므로 확인 시트를 먼저 보여줌
+  const [showGuestLogoutConfirm, setShowGuestLogoutConfirm] = useState(false);
+  const [guestLinkLoading, setGuestLinkLoading] = useState(false);
+  const [guestLinkError, setGuestLinkError] = useState("");
+  showGuestLogoutConfirmRef.current = showGuestLogoutConfirm;
   // 닫힐 때 아래로 슥 내려가는 애니메이션을 보여주기 위한 상태 (실제 unmount 전까지 true)
   const [closingAddSheet, setClosingAddSheet] = useState(false);
   const [closingFolderManage, setClosingFolderManage] = useState(false);
   const [closingCategoryManage, setClosingCategoryManage] = useState(false);
+  const [closingGuestLogoutConfirm, setClosingGuestLogoutConfirm] = useState(false);
   const [showShareFeatureInfo, setShowShareFeatureInfo] = useState(false);
   const [closingShareFeatureInfo, setClosingShareFeatureInfo] = useState(false);
   const closeShareFeatureInfo = useCallback(() => {
@@ -870,6 +889,60 @@ export default function RecipeKeeper() {
       setClosingCategoryManage(false);
     }, 260);
   }, []);
+  const closeGuestLogoutConfirm = useCallback(() => {
+    setClosingGuestLogoutConfirm(true);
+    setTimeout(() => {
+      setShowGuestLogoutConfirm(false);
+      setClosingGuestLogoutConfirm(false);
+      setGuestLinkError("");
+    }, 260);
+  }, []);
+  function handleLogoutClick() {
+    if (user?.isAnonymous) {
+      setGuestLinkError("");
+      setShowGuestLogoutConfirm(true);
+    } else {
+      signOut(auth);
+    }
+  }
+  function isUserCancelledGoogleLink(err) {
+    if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+      return true;
+    }
+    // 네이티브 플러그인은 표준 firebase auth 에러 코드 없이 취소 메시지만 던짐
+    return /cancel/i.test(String(err?.message || ""));
+  }
+  async function handleLinkGoogleAndLogout() {
+    setGuestLinkError("");
+    setGuestLinkLoading(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        // 안드로이드 앱: 로그인 화면과 동일하게 OS 네이티브 구글 계정 선택 UI 사용
+        const { credential } = await FirebaseAuthentication.signInWithGoogle({
+          useCredentialManager: false,
+        });
+        if (!credential?.idToken) {
+          throw new Error("구글 로그인 토큰을 가져오지 못했어요.");
+        }
+        const authCredential = GoogleAuthProvider.credential(credential.idToken);
+        await linkWithCredential(auth.currentUser, authCredential);
+      } else {
+        const provider = new GoogleAuthProvider();
+        await linkWithPopup(auth.currentUser, provider);
+      }
+      await signOut(auth);
+    } catch (err) {
+      if (isUserCancelledGoogleLink(err)) {
+        // 사용자가 계정 선택을 취소한 경우 — 에러 없이 시트로 돌아감
+      } else if (err?.code === "auth/credential-already-in-use") {
+        setGuestLinkError("이 구글 계정은 이미 다른 계정에서 사용 중이에요. 다른 구글 계정을 사용하거나 아래에서 '계속하기'를 선택해주세요.");
+      } else {
+        setGuestLinkError("구글 계정 연결에 실패했어요. 다시 시도해주세요.");
+      }
+    } finally {
+      setGuestLinkLoading(false);
+    }
+  }
   const closeChatSheet = useCallback(() => {
     setClosingChatSheet(true);
     setTimeout(() => {
@@ -3104,7 +3177,7 @@ export default function RecipeKeeper() {
             </div>
 
             <button
-              onClick={() => signOut(auth)}
+              onClick={handleLogoutClick}
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold"
               style={{ backgroundColor: "#FFFFFF", border: `1px solid ${C.line}`, color: C.muted }}
             >
@@ -4005,6 +4078,68 @@ export default function RecipeKeeper() {
                 style={{ backgroundColor: C.ember, color: C.ink }}
               >
                 삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- 게스트 계정 로그아웃 확인 시트 ---------- */}
+      {showGuestLogoutConfirm && (
+        <div
+          className={`${closingGuestLogoutConfirm ? "sheet-backdrop-out" : "sheet-backdrop"} fixed inset-0 flex items-end justify-center max-w-md mx-auto z-40`}
+          style={{ backgroundColor: "#00000099" }}
+        >
+          <div
+            className={`${closingGuestLogoutConfirm ? "sheet-content-out" : "sheet-content"} w-full rounded-t-3xl p-5`}
+            style={{ backgroundColor: C.ink, border: `1px solid ${C.line}` }}
+          >
+            <h3 style={{ fontFamily: "'Gowun Dodum', sans-serif", fontSize: 20, color: C.paper }}>
+              게스트 계정에서 로그아웃할까요?
+            </h3>
+            <p style={{ color: C.muted, fontSize: 15, marginTop: 6, lineHeight: 1.6 }}>
+              게스트 계정에서 로그아웃하면 저장된 레시피가 모두 사라져요.
+              삭제/재설치와 마찬가지로 복구할 수 없어요.
+            </p>
+
+            {guestLinkError && (
+              <div style={{ fontSize: 13, color: "#C0392B", marginTop: 12, lineHeight: 1.5 }}>
+                {guestLinkError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 mt-5">
+              <button
+                onClick={handleLinkGoogleAndLogout}
+                disabled={guestLinkLoading}
+                className="py-3 rounded-xl font-bold"
+                style={{
+                  backgroundColor: C.ember,
+                  color: C.ink,
+                  opacity: guestLinkLoading ? 0.7 : 1,
+                  cursor: guestLinkLoading ? "default" : "pointer",
+                }}
+              >
+                {guestLinkLoading ? "연결하는 중..." : "구글 계정에 연결하고 로그아웃하기"}
+              </button>
+              <button
+                onClick={closeGuestLogoutConfirm}
+                disabled={guestLinkLoading}
+                className="py-3 rounded-xl font-bold"
+                style={{ backgroundColor: C.raised, color: C.muted }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => signOut(auth)}
+                disabled={guestLinkLoading}
+                className="py-2"
+                style={{ background: "none", border: "none", color: C.muted, fontSize: 13 }}
+              >
+                계속하기
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                  (데이터를 포기하고 로그아웃)
+                </div>
               </button>
             </div>
           </div>
