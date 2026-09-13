@@ -18,6 +18,21 @@ const COOKMARK_LOGO =
 export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [guestSheetOpen, setGuestSheetOpen] = useState(false);
+  const [guestSheetClosing, setGuestSheetClosing] = useState(false);
+
+  const openGuestSheet = () => {
+    setGuestSheetClosing(false);
+    setGuestSheetOpen(true);
+  };
+
+  const closeGuestSheet = () => {
+    setGuestSheetClosing(true);
+    setTimeout(() => {
+      setGuestSheetOpen(false);
+      setGuestSheetClosing(false);
+    }, 220);
+  };
 
   const handleGuestLogin = async () => {
     setError('');
@@ -84,16 +99,84 @@ export default function LoginScreen() {
             </svg>
             Google로 계속하기
           </button>
-          <button onClick={handleGuestLogin} disabled={loading} style={{ height: 40, background: 'transparent', border: 'none', color: '#8A7A6D', fontSize: 14, fontWeight: 500, cursor: loading ? 'default' : 'pointer' }}>
+          <button onClick={openGuestSheet} disabled={loading} style={{ height: 46, borderRadius: 12, background: 'transparent', border: '1px solid #6B3F5C', color: '#6B3F5C', fontSize: 14, fontWeight: 500, cursor: loading ? 'default' : 'pointer' }}>
             게스트로 시작하기
           </button>
-          <div style={{ fontSize: 12, color: '#A79A8C', textAlign: 'center', marginTop: -8, lineHeight: 1.5 }}>
-            게스트로 시작하면 이 기기에만 데이터가 저장돼요.
+          <div style={{ fontSize: 11, color: '#A79A8C', textAlign: 'center', marginTop: -6, lineHeight: 1.5 }}>
+            게스트로 시작하면 로그아웃하거나
             <br />
-            삭제/재설치 시 복구되지 않아요.
+            앱을 삭제하면 레시피가 사라져요.
           </div>
         </div>
       </div>
+
+      {guestSheetOpen && (
+        <div
+          onClick={closeGuestSheet}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            zIndex: 50,
+            animation: `${guestSheetClosing ? 'cmFadeOut' : 'cmFadeIn'} 0.2s ease forwards`,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              background: '#FBF3E9',
+              borderRadius: '20px 20px 0 0',
+              padding: '24px 20px 28px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 14,
+              animation: `${guestSheetClosing ? 'cmSlideDown' : 'cmSlideUp'} 0.22s ease forwards`,
+            }}
+          >
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: '#E3D8C8' }} />
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5E6D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+              ⚠️
+            </div>
+            <div style={{ fontSize: 14, color: '#5A4A44', textAlign: 'center', lineHeight: 1.6 }}>
+              게스트로 시작하면 로그아웃하거나
+              <br />
+              앱 삭제·재설치 시 레시피를 복구할 수 없어요.
+            </div>
+            <div style={{ fontSize: 14, color: '#5A4A44', textAlign: 'center', lineHeight: 1.6 }}>
+              구글 계정을 연동하면
+              <br />
+              레시피를 계속 보관할 수 있어요.
+            </div>
+            <button
+              onClick={() => { closeGuestSheet(); handleGoogleLogin(); }}
+              disabled={loading}
+              style={{ width: '100%', height: 48, borderRadius: 12, background: '#6B3F5C', border: 'none', color: '#FFFDF9', fontSize: 14, fontWeight: 500, marginTop: 4, cursor: loading ? 'default' : 'pointer' }}
+            >
+              Google 계정으로 계속하기
+            </button>
+            <button
+              onClick={() => { closeGuestSheet(); handleGuestLogin(); }}
+              disabled={loading}
+              style={{ width: '100%', height: 44, borderRadius: 12, background: 'transparent', border: '1px solid #CBB9AB', color: '#8A7A72', fontSize: 13, fontWeight: 500, cursor: loading ? 'default' : 'pointer' }}
+            >
+              그래도 게스트로 시작하기
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes cmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes cmFadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes cmSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes cmSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+      `}</style>
     </div>
   );
 }
