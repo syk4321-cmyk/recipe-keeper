@@ -54,8 +54,9 @@ export default function LoginScreen() {
       await setPersistence(auth, browserLocalPersistence);
 
       if (Capacitor.isNativePlatform()) {
+        // Credential Manager(기본 경로) 사용
         const { credential } = await FirebaseAuthentication.signInWithGoogle({
-          useCredentialManager: false,
+          useCredentialManager: true,
         });
         if (!credential?.idToken) {
           throw new Error('구글 로그인 토큰을 가져오지 못했어요.');
