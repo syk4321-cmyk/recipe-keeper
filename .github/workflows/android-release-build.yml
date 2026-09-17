@@ -27,8 +27,11 @@ jobs:
 
       - name: Install Android SDK platform & build-tools
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          SDKMANAGER=$(find "$ANDROID_HOME" -maxdepth 4 -type f -name sdkmanager | sort -V | tail -1)
+          echo "using sdkmanager at $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
