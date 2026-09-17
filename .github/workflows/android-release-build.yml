@@ -52,6 +52,7 @@ jobs:
         working-directory: .
         env:
           PORT: '18404'
+          BASE_PATH: '/'
         run: pnpm --filter @workspace/blank-react-app run build
 
       - name: Capacitor sync android
