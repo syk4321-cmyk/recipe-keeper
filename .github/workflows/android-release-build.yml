@@ -56,7 +56,7 @@ jobs:
         run: pnpm --filter @workspace/blank-react-app run build
 
       - name: Capacitor sync android
-        run: ./node_modules/.bin/cap sync android
+        run: ../../node_modules/.bin/cap sync android
 
       - name: Decode keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/cookmark-release-key.jks
