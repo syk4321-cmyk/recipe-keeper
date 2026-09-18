@@ -4,7 +4,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager } from "firebase/firestore";
 
 // Firebase 콘솔 > 프로젝트 설정 > 내 앱 > cookmark-web 에서 확인한 값입니다.
 // 클라이언트에 그대로 노출되는 게 Firebase 설계상 정상이라 값 자체는 비밀이 아니지만,
@@ -26,7 +26,11 @@ const app = initializeApp(firebaseConfig);
 // 로그인 기능(Authentication)
 export const auth = getAuth(app);
 
-// 데이터베이스(Firestore)
-export const db = getFirestore(app);
+// 데이터베이스(Firestore) — 기기에 오프라인 캐시를 켜서, 앱을 껐다 켠 직후
+// 네트워크가 아직 안 붙은 상태에서도 로컬에 저장된 데이터를 먼저 읽을 수 있게 함
+// (콜드 스타트 직후 읽기 실패로 빈 상태가 서버에 덮어써지는 문제 방지)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() }),
+});
 
 export default app;
