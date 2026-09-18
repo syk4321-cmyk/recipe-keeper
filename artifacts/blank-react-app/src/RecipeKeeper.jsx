@@ -651,6 +651,9 @@ export default function RecipeKeeper() {
   const showPurchaseSheetRef = useRef(false);
   const showPurchasePickerSheetRef = useRef(false);
   const showGuestLogoutConfirmRef = useRef(false);
+  // 로그인 직후 레시피를 서버에서 불러오다 실패했을 때, 그 직후에 자동으로
+  // 실행되는 "저장" 이펙트가 빈 목록을 그대로 서버에 덮어쓰지 않도록 막는 플래그
+  const skipNextRecipesSaveRef = useRef(false);
   // ---- 온보딩 슬라이드 / 코치마크 ----
   const showOnboardingRef = useRef(false);
   const showCoachmarkRef = useRef(false);
@@ -1190,6 +1193,7 @@ export default function RecipeKeeper() {
     setShoppingList([]);
     setRecentSearches([]);
     (async () => {
+      let recipesLoadFailed = false;
       try {
         const r = await appStorage.get("recipes", false);
         if (r && r.value) {
@@ -1200,7 +1204,9 @@ export default function RecipeKeeper() {
           );
           setRecipes(migrated);
         }
-      } catch (e) {}
+      } catch (e) {
+        recipesLoadFailed = true;
+      }
       try {
         const f = await appStorage.get("folders", false);
         if (f && f.value) setFolders(JSON.parse(f.value));
@@ -1242,6 +1248,9 @@ export default function RecipeKeeper() {
         const ob = await appStorage.get("hasSeenOnboarding", false);
         if (!ob || ob.value !== "true") setShowOnboarding(true);
       } catch (e) {}
+      // 레시피 불러오기가 실패했다면, 다음에 이어지는 자동 저장 한 번은
+      // (지금 화면에 남아있는 빈 목록으로) 건너뛰어서 서버 데이터를 지키지 않게 함
+      skipNextRecipesSaveRef.current = recipesLoadFailed;
       setReady(true);
     })();
   }, [user]);
@@ -1286,7 +1295,15 @@ export default function RecipeKeeper() {
     }
   }, [ready, pendingShare]);
 
-  useEffect(() => { if (ready) appStorage.set("recipes", JSON.stringify(recipes), false).catch(() => {}); }, [recipes, ready]);
+  useEffect(() => {
+    if (!ready) return;
+    if (skipNextRecipesSaveRef.current) {
+      // 방금 로딩 실패로 비어있는 상태일 수 있어서, 이번 한 번만 저장을 건너뜀
+      skipNextRecipesSaveRef.current = false;
+      return;
+    }
+    appStorage.set("recipes", JSON.stringify(recipes), false).catch(() => {});
+  }, [recipes, ready]);
   useEffect(() => { if (ready) appStorage.set("folders", JSON.stringify(folders), false).catch(() => {}); }, [folders, ready]);
   useEffect(() => { if (ready) appStorage.set("categories", JSON.stringify(categories), false).catch(() => {}); }, [categories, ready]);
   useEffect(() => { if (ready) appStorage.set("cardLayout", cardLayout, false).catch(() => {}); }, [cardLayout, ready]);
