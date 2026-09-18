@@ -481,8 +481,12 @@ function Chip({ active, children, onClick, style }) {
 
 // 재료명으로 쿠팡/마켓컬리 검색 결과 페이지 URL을 만들어요.
 // 나중에 파트너스 딥링크로 바꿀 때는 이 두 함수만 수정하면 돼요.
+// COUPANG_PARTNERS_ID: 쿠팡 파트너스 가입 시 발급된 ID (AF로 시작), lptag 파라미터로
+// 붙여서 이 링크로 발생한 구매에 수수료가 연결되도록 함.
+const COUPANG_PARTNERS_ID = "AF4565355";
+
 function getCoupangSearchUrl(query) {
-  return `https://www.coupang.com/np/search?q=${encodeURIComponent(query)}`;
+  return `https://www.coupang.com/np/search?q=${encodeURIComponent(query)}&lptag=${COUPANG_PARTNERS_ID}`;
 }
 
 function getKurlySearchUrl(query) {
@@ -3788,8 +3792,11 @@ export default function RecipeKeeper() {
               </h3>
               <button onClick={() => setShowPurchaseSheet(false)}><X size={22} color={C.muted} /></button>
             </div>
-            <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+            <p style={{ color: C.muted, fontSize: 12, marginBottom: 4 }}>
               쿠팡 또는 컬리에서 재료명으로 검색 결과를 열어드려요. 가격·재고는 각 쇼핑몰에서 확인해주세요.
+            </p>
+            <p style={{ color: C.muted, fontSize: 10, marginBottom: 12, opacity: 0.8 }}>
+              이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.
             </p>
             <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
               {purchaseSheetItems.map((item) => (
