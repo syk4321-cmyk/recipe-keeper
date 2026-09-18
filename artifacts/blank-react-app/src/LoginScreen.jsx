@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   signInWithPopup,
   signInWithCredential,
+  signInWithCustomToken,
   signInAnonymously,
   GoogleAuthProvider,
   setPersistence,
@@ -81,6 +82,46 @@ export default function LoginScreen() {
     }
   };
 
+  const handleKakaoLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+
+      const Kakao = await loadKakaoSdk();
+      if (!Kakao.isInitialized()) {
+        Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+      }
+
+      const kakaoResult = await new Promise((resolve, reject) => {
+        Kakao.Auth.login({
+          success: resolve,
+          fail: reject,
+        });
+      });
+
+      const response = await fetch('/api/auth/kakao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: kakaoResult.access_token }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.customToken) {
+        throw new Error(data.error || '카카오 로그인에 실패했어요.');
+      }
+
+      await signInWithCustomToken(auth, data.customToken);
+    } catch (err) {
+      if (isUserCancelledKakaoLogin(err)) {
+        // 사용자가 로그인을 취소한 경우
+      } else {
+        setError(err?.message || '오류가 발생했어요. 다시 시도해주세요.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Gowun Dodum', sans-serif" }}>
       <div style={{ width: '100%', maxWidth: 360 }}>
@@ -99,6 +140,12 @@ export default function LoginScreen() {
               <path fill="#EA4335" d="M24 10.9c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C34.9 4.2 30 2 24 2 15.3 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9 12.4-9z" />
             </svg>
             Google로 계속하기
+          </button>
+          <button onClick={handleKakaoLogin} disabled={loading} style={{ height: 46, borderRadius: 12, background: '#FEE500', border: 'none', color: '#191919', fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: loading ? 'default' : 'pointer' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24">
+              <path fill="#191919" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.76 1.86 5.19 4.66 6.6-.2.74-.73 2.7-.84 3.13-.13.53.2.52.42.38.17-.11 2.7-1.83 3.8-2.58.63.09 1.28.14 1.96.14 5.52 0 10-3.48 10-7.67C22 6.48 17.52 3 12 3z"/>
+            </svg>
+            카카오로 계속하기
           </button>
           <button onClick={openGuestSheet} disabled={loading} style={{ height: 46, borderRadius: 12, background: 'transparent', border: '1px solid #6B3F5C', color: '#6B3F5C', fontSize: 14, fontWeight: 500, cursor: loading ? 'default' : 'pointer' }}>
             게스트로 시작하기
@@ -180,6 +227,25 @@ export default function LoginScreen() {
       `}</style>
     </div>
   );
+}
+
+function loadKakaoSdk() {
+  return new Promise((resolve, reject) => {
+    if (window.Kakao) {
+      resolve(window.Kakao);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://developers.kakao.com/sdk/js/kakao.min.js';
+    script.async = true;
+    script.onload = () => resolve(window.Kakao);
+    script.onerror = () => reject(new Error('카카오 SDK 로드에 실패했어요.'));
+    document.head.appendChild(script);
+  });
+}
+
+function isUserCancelledKakaoLogin(err) {
+  return err?.error === 'access_denied' || err?.error === 'user_cancel' || /cancel/i.test(String(err?.error_description || ''));
 }
 
 function isUserCancelledGoogleLogin(err) {
