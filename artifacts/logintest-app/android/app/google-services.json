@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "152969037862",
+    "project_id": "cookmark-logintest",
+    "storage_bucket": "cookmark-logintest.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:152969037862:android:29654d99a9aabb92d1bee7",
+        "android_client_info": {
+          "package_name": "com.cookmark.logintest"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "152969037862-4u2e5lg3b20t55pq967k4ekophrm42ib.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cookmark.logintest",
+            "certificate_hash": "42c8c065f8877c363c874db83320a0cee6348d4a"
+          }
+        },
+        {
+          "client_id": "152969037862-4jr9vue5d4e2rc4fh55lg5vfop61do1n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDo07ioeI22_mf2siO0Z7ozrinhfzDM6i8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "152969037862-4jr9vue5d4e2rc4fh55lg5vfop61do1n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

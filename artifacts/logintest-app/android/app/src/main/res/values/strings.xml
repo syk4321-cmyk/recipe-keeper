@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">쿡마크 로그인 테스트</string>
+    <string name="title_activity_main">쿡마크 로그인 테스트</string>
+    <string name="package_name">com.cookmark.logintest</string>
+    <string name="custom_url_scheme">com.cookmark.logintest</string>
+</resources>

@@ -1,0 +1,11 @@
+{
+  "appId": "com.cookmark.logintest",
+  "appName": "쿡마크 로그인 테스트",
+  "webDir": "dist",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
+    }
+  }
+}
